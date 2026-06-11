@@ -9,7 +9,8 @@ __pycache__/
 .env
 
 # Local data (market data lives on the orphan `data` branch, never on main)
-data/
+# Root-anchored: must NOT match src/data/
+/data/
 *.parquet
 *.duckdb
 
