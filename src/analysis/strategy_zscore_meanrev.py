@@ -18,6 +18,17 @@ class ZScoreMeanRevStrategy(BaseStrategy):
     strategy_id = "zscore_meanrev"
     name_kr = "Z-Score 평균회귀"
 
+    def should_exit(self, df: pd.DataFrame) -> str | None:
+        z = df.iloc[-1]["zscore20"]
+        if pd.notna(z) and z > self.params["z_exit"]:
+            return f"평균 복귀 (z-score {z:+.1f})"
+        return None
+
+    def is_overheated(self, df: pd.DataFrame) -> bool:
+        """z > +overheat threshold: 통계적 과열 sell-side alert for held positions."""
+        z = df.iloc[-1]["zscore20"]
+        return pd.notna(z) and z > self.params["z_overheat"]
+
     def evaluate(self, df: pd.DataFrame, ticker: str, name: str, market: str) -> Signal | None:
         if len(df) < 2:
             return None

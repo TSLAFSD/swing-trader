@@ -1,0 +1,121 @@
+"""Live signal tracking (spec §7 Layer 3).
+
+Every emitted signal is persisted (Parquet, rides the data branch). The
+weekly job computes realized +5d/+10d forward returns against stored closes,
+feeds the per-strategy circuit breaker, and renders a Korean summary.
+"""
+
+import logging
+from datetime import date
+from pathlib import Path
+
+import pandas as pd
+
+from config import settings
+from src.analysis.base_strategy import Signal
+from src.data.store import ParquetStore
+
+logger = logging.getLogger(__name__)
+
+SIGNALS_FILE = settings.DATA_ROOT / "signals" / "signals.parquet"
+
+COLUMNS = ["signal_date", "ticker", "market", "strategy_id", "strength", "price"]
+
+
+def record_signals(signals: list[Signal], path: Path | None = None) -> int:
+    """Append scan signals to the persistent log (deduped per ticker/strategy/day).
+
+    Returns:
+        Total rows now stored.
+    """
+    path = path or SIGNALS_FILE
+    rows = pd.DataFrame(
+        [
+            {
+                "signal_date": s.signal_date,
+                "ticker": s.ticker,
+                "market": s.market,
+                "strategy_id": s.strategy_id,
+                "strength": s.strength,
+                "price": s.price,
+            }
+            for s in signals
+        ],
+        columns=COLUMNS,
+    )
+    if path.exists():
+        rows = pd.concat([pd.read_parquet(path), rows], ignore_index=True)
+    rows = rows.drop_duplicates(subset=["signal_date", "ticker", "strategy_id"], keep="first")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    rows.to_parquet(path, compression="zstd", index=False)
+    logger.info("tracker: %d signals stored", len(rows))
+    return len(rows)
+
+
+def load_signals(path: Path | None = None) -> pd.DataFrame:
+    """Load the signal log (empty frame when none)."""
+    path = path or SIGNALS_FILE
+    if not path.exists():
+        return pd.DataFrame(columns=COLUMNS)
+    return pd.read_parquet(path)
+
+
+def forward_returns(
+    store: ParquetStore, signals: pd.DataFrame, horizons: tuple[int, ...] = (5, 10)
+) -> pd.DataFrame:
+    """Compute realized +Nd forward returns for each logged signal.
+
+    A horizon column stays NaN until enough trading days have elapsed.
+
+    Args:
+        store: Market-data store (close prices).
+        signals: load_signals() output.
+        horizons: Trading-day horizons.
+
+    Returns:
+        signals + fwd_{n}d columns (fractions).
+    """
+    out = signals.copy()
+    for n in horizons:
+        out[f"fwd_{n}d"] = float("nan")
+    for market in out["market"].unique():
+        data = store.load(market)
+        if data.empty:
+            continue
+        closes = data.pivot_table(index="date", columns="ticker", values="close")
+        closes.index = pd.to_datetime(closes.index)
+        trading_days = closes.index
+        for i, row in out[out["market"] == market].iterrows():
+            t = row["ticker"]
+            if t not in closes.columns:
+                continue
+            sig_day = pd.Timestamp(row["signal_date"])
+            pos = trading_days.searchsorted(sig_day)
+            if pos >= len(trading_days) or trading_days[pos] != sig_day:
+                continue
+            base = closes[t].iloc[pos]
+            for n in horizons:
+                if pos + n < len(trading_days):
+                    fwd = closes[t].iloc[pos + n]
+                    if pd.notna(base) and pd.notna(fwd) and base > 0:
+                        out.loc[i, f"fwd_{n}d"] = float(fwd / base - 1.0)
+    return out
+
+
+def weekly_summary_kr(fwd: pd.DataFrame, weeks: int = 4) -> str:
+    """Korean per-strategy hit-rate summary over the trailing weeks."""
+    if fwd.empty:
+        return "최근 시그널 기록 없음"
+    cutoff = pd.Timestamp(date.today()) - pd.Timedelta(weeks=weeks)
+    recent = fwd[pd.to_datetime(fwd["signal_date"]) >= cutoff]
+    if recent.empty:
+        return f"지난 {weeks}주간 시그널 없음"
+    lines = [f"📊 지난 {weeks}주 시그널 실전 적중률"]
+    for sid, grp in recent.groupby("strategy_id"):
+        n = len(grp)
+        f5 = grp["fwd_5d"].dropna()
+        f10 = grp["fwd_10d"].dropna()
+        part5 = f"+5d 평균 {f5.mean() * 100:+.1f}% (적중 {(f5 > 0).mean() * 100:.0f}%)" if len(f5) else "+5d 집계 대기"
+        part10 = f"+10d 평균 {f10.mean() * 100:+.1f}% (적중 {(f10 > 0).mean() * 100:.0f}%)" if len(f10) else "+10d 집계 대기"
+        lines.append(f"· {sid}: {n}건 — {part5} · {part10}")
+    return "\n".join(lines)

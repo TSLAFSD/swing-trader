@@ -50,7 +50,10 @@ strategies:
       time_stop_days: 7
 
   breakout:               # ④ 돌파
-    enabled: false
+    # Phase-4 gates PASSED 2026-06-12 (US 78-ticker 3y sample, costs on):
+    # OoS PF 2.55, OoS WR 53.7%, WF 3/3, MC(10% sizing) worst-tail MDD 12.4%,
+    # sensitivity 4/4. See validation log in Phase 4 report.
+    enabled: true
     exit_mode: atr_trailing
     min_bars: 150
     params:

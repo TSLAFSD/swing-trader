@@ -70,7 +70,8 @@ def main() -> None:
     sub.add_parser("scan-kr")
     sub.add_parser("scan-kr-midday")
     sub.add_parser("weekly")
-    sub.add_parser("backtest")
+    backtest = sub.add_parser("backtest")
+    backtest.add_argument("--smoke", action="store_true", help="tiny debug sample (never gates YAML)")
     analyze = sub.add_parser("analyze")
     analyze.add_argument("ticker")
     args = parser.parse_args()
@@ -81,6 +82,10 @@ def main() -> None:
         _scan("kr")
     elif args.command == "scan-kr-midday":
         _scan("kr", preliminary=True)
+    elif args.command == "backtest":
+        from src.backtest.run_validation import run
+
+        run(smoke=args.smoke)
     else:
         logger.error("command %r is wired in a later phase", args.command)
         sys.exit(2)

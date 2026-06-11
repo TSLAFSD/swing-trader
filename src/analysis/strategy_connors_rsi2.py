@@ -18,6 +18,15 @@ class ConnorsRsi2Strategy(BaseStrategy):
     strategy_id = "connors_rsi2"
     name_kr = "단기 과매도 반등"
 
+    def should_exit(self, df: pd.DataFrame) -> str | None:
+        row = df.iloc[-1]
+        p = self.params
+        if pd.notna(row["rsi2"]) and row["rsi2"] > p["rsi2_exit"]:
+            return f"RSI(2) {row['rsi2']:.0f} 반등 완료 (> {p['rsi2_exit']})"
+        if pd.notna(row[f"sma{p['exit_sma']}"]) and row["close"] > row[f"sma{p['exit_sma']}"]:
+            return f"{p['exit_sma']}일선 회복"
+        return None
+
     def evaluate(self, df: pd.DataFrame, ticker: str, name: str, market: str) -> Signal | None:
         row = df.iloc[-1]
         p = self.params

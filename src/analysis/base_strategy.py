@@ -88,6 +88,21 @@ class BaseStrategy(ABC):
             Signal if entry conditions are all met on the last bar, else None.
         """
 
+    def should_exit(self, df: pd.DataFrame) -> str | None:
+        """Strategy-specific sell condition on the LAST bar (None = hold).
+
+        Engine-level exits (stop/target/trailing/ROI/time) are evaluated
+        separately by src.risk.exit_engine; this only adds the strategy's own
+        indicator-based exit (e.g. RSI > 70). Default: no extra condition.
+
+        Args:
+            df: compute_indicators() frame up to and including the current bar.
+
+        Returns:
+            Korean exit reason, or None.
+        """
+        return None
+
     def _snapshot(self, row: pd.Series, keys: list[str]) -> dict[str, float]:
         """Collect a JSON-safe indicator snapshot for the Signal."""
         snap: dict[str, float] = {}

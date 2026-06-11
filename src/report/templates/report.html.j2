@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>{{ name }} ({{ ticker }}) — 분석 리포트</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0d1117; color: #e6edf3;
+         font-family: -apple-system, "Apple SD Gothic Neo", sans-serif; font-size: 15px; line-height: 1.55; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 14px; }
+  h1 { font-size: 1.25rem; margin: 0 0 2px; }
+  h2 { font-size: 1.0rem; margin: 22px 0 8px; color: #8ab4f8; border-bottom: 1px solid #21262d; padding-bottom: 4px; }
+  .meta { color: #8b949e; font-size: 0.82rem; }
+  .badges { margin: 8px 0; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.78rem;
+           margin: 2px 4px 2px 0; background: #1f2937; border: 1px solid #30363d; }
+  .badge.strategy { background: #1d4ed8; border-color: #1d4ed8; }
+  .badge.warn { background: #7c2d12; border-color: #9a3412; }
+  .badge.ok { background: #14532d; border-color: #166534; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .card { background: #161b22; border: 1px solid #21262d; border-radius: 10px; padding: 10px 12px; }
+  .card .k { color: #8b949e; font-size: 0.75rem; }
+  .card .v { font-size: 1.05rem; font-weight: 600; margin-top: 2px; }
+  ul { padding-left: 18px; margin: 6px 0; }
+  li { margin: 3px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #21262d; }
+  th { color: #8b949e; font-weight: 500; }
+  .warn-box { background: #2d1b0e; border: 1px solid #9a3412; border-radius: 10px; padding: 10px 12px; margin: 8px 0; }
+  .disclaimer { color: #8b949e; font-size: 0.75rem; margin-top: 28px; padding-top: 10px; border-top: 1px solid #21262d; }
+  .chart { margin: 0 -6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>{{ name }} <span class="meta">({{ ticker }} · {{ market_label }})</span></h1>
+  <div class="meta">발행: {{ issued_at }}</div>
+  <div class="badges">
+    {% for b in strategy_badges %}<span class="badge strategy">{{ b }}</span>{% endfor %}
+    <span class="badge">강도 {{ strength }}</span>
+    <span class="badge">신뢰도 {{ confidence_label }}</span>
+    {% for t in tags %}<span class="badge warn">{{ t }}</span>{% endfor %}
+  </div>
+
+  <h2>📈 차트 (6개월 · 터치 확대/이동)</h2>
+  <div class="chart">{{ chart_html | safe }}</div>
+
+  <h2>🔍 지표 해설</h2>
+  <ul>{% for line in indicator_lines %}<li>{{ line }}</li>{% endfor %}</ul>
+
+  <h2>🏢 펀더멘털</h2>
+  <div class="grid">
+    {% for k, v in fundamentals %}
+    <div class="card"><div class="k">{{ k }}</div><div class="v">{{ v }}</div></div>
+    {% endfor %}
+  </div>
+
+  <h2>💡 매수 근거</h2>
+  <p>{{ reason }}</p>
+  {% if strategy_ranking %}
+  <table>
+    <tr><th>전략</th><th>과거 거래</th><th>승률</th><th>PF</th><th>평가</th></tr>
+    {% for r in strategy_ranking %}
+    <tr><td>{{ r.name }}</td><td>{{ r.n }}</td><td>{{ r.wr }}</td><td>{{ r.pf }}</td><td>{{ r.label }}</td></tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  <h2>🎯 매매 계획</h2>
+  <div class="grid">
+    <div class="card"><div class="k">제안 매수가</div><div class="v">{{ plan.entry }}</div></div>
+    <div class="card"><div class="k">손절 ({{ plan.stop_mode }})</div><div class="v">{{ plan.stop }}</div></div>
+    <div class="card"><div class="k">목표</div><div class="v">{{ plan.target }}</div></div>
+    <div class="card"><div class="k">제안 비중 (하프 켈리 · 참고용)</div><div class="v">{{ plan.kelly }}</div></div>
+  </div>
+  {% if plan.correlation_warning %}<div class="warn-box">{{ plan.correlation_warning }}</div>{% endif %}
+
+  <h2>📊 백테스트 신뢰도</h2>
+  {% if confidence.low_sample %}<div class="warn-box">⚠️ {{ confidence.label }} — 아래 수치는 통계적으로 신뢰하기 어렵습니다.</div>{% endif %}
+  <table>
+    <tr><th>표본수</th><th>승률</th><th>PF</th><th>MDD</th><th>과적합 위험</th></tr>
+    <tr><td>{{ confidence.n }}</td><td>{{ confidence.wr }}</td><td>{{ confidence.pf }}</td>
+        <td>{{ confidence.mdd }}</td><td>{{ confidence.risk_label }}</td></tr>
+  </table>
+  <p class="meta">{{ validation_note }}</p>
+
+  <h2>🌐 시장 국면</h2>
+  <p>{{ regime_label }}</p>
+  {% if downgraded %}<div class="warn-box">⚠️ 시장 국면에 따라 시그널 강도가 하향 조정되었습니다.</div>{% endif %}
+
+  <div class="disclaimer">
+    ⚠️ 본 리포트의 백테스트 확률은 과거 데이터 기준이며, 실전 성과는 일반적으로 이보다 낮습니다.
+    백테스트는 현재 상장 종목 기준으로 상장폐지 종목이 제외된 생존 편향(낙관적 왜곡)을 포함합니다.
+    본 자료는 투자 자문이 아니며, 모든 투자 판단과 책임은 투자자 본인에게 있습니다.
+    시스템은 추천할 뿐, 결정은 사람이 합니다.
+  </div>
+</div>
+</body>
+</html>

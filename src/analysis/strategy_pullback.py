@@ -13,6 +13,17 @@ class PullbackStrategy(BaseStrategy):
     strategy_id = "pullback"
     name_kr = "눌림목"
 
+    def should_exit(self, df: pd.DataFrame) -> str | None:
+        row = df.iloc[-1]
+        p = self.params
+        if pd.notna(row["rsi14"]) and row["rsi14"] > p["rsi_exit"]:
+            return f"RSI {row['rsi14']:.0f} 과열 (> {p['rsi_exit']})"
+        if pd.notna(row["sma20"]) and row["close"] < row["sma20"]:
+            return "20일선 이탈"
+        if pd.notna(row["bb_upper"]) and row["close"] >= row["bb_upper"]:
+            return "볼린저 상단 도달"
+        return None
+
     def evaluate(self, df: pd.DataFrame, ticker: str, name: str, market: str) -> Signal | None:
         row = df.iloc[-1]
         p = self.params

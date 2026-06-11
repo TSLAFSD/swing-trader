@@ -13,6 +13,12 @@ class BreakoutStrategy(BaseStrategy):
     strategy_id = "breakout"
     name_kr = "돌파"
 
+    def should_exit(self, df: pd.DataFrame) -> str | None:
+        row = df.iloc[-1]
+        if pd.notna(row["sma20"]) and row["close"] < row["sma20"]:
+            return "20일선 이탈"
+        return None
+
     def evaluate(self, df: pd.DataFrame, ticker: str, name: str, market: str) -> Signal | None:
         row = df.iloc[-1]
         p = self.params
