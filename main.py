@@ -28,6 +28,10 @@ JOB_KR = {
     "scan-kr-midday": "한국 예비 스캔",
     "gap-guard-us": "미국 프리마켓 갭 체크",
     "weekly": "주간 점검",
+    "analyze": "종목 딥 분석",
+    "position-add": "보유 종목 추가",
+    "position-remove": "보유 종목 제거",
+    "positions-report": "보유 현황 조회",
 }
 
 
@@ -88,7 +92,20 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
     if muted:
         logger.warning("circuit breaker muted %d signals", len(muted))
 
+    # Rebuy cooldown: drop fresh signals for recently removed tickers.
+    from src.commands.positions_cmd import cooldown_blocked
+
+    blocked = cooldown_blocked([s.ticker for s in result.signals])
+    if blocked:
+        logger.info("rebuy cooldown dropped: %s", sorted(blocked))
+        result.signals = [s for s in result.signals if s.ticker not in blocked]
+
     # Per-ticker confidence + reports for ranked signals (never full universe).
+    from src.risk.correlation import correlation_warning
+    from src.risk.kelly import kelly_hint_kr
+
+    held = [p.ticker for p in load_positions() if p.market == market]
+    held_data = store.load(market, tickers=held) if held else None
     strategies = {s.strategy_id: s for s in get_strategies(enabled_only=False)}
     urls: dict[str, str] = {}
     conf_labels: dict[str, str] = {}
@@ -104,12 +121,22 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
         conf_labels[sig.ticker] = f"{conf.score:.2f}"
         # Final rank = strength x confidence (re-rank below).
         sig.strength = round(sig.strength * max(conf.score, 0.1), 1)
+        corr_warn = None
+        if held and held_data is not None and not held_data.empty:
+            closes = {sig.ticker: df_ind["close"]}
+            for t, grp in held_data.groupby("ticker"):
+                closes[t] = grp.sort_values("date")["close"].reset_index(drop=True)
+            corr_warn = correlation_warning(sig.ticker, closes, held, names)
+            if corr_warn:
+                sig.tags.append(corr_warn)
         yf_symbol = sig.ticker if market == "us" else f"{sig.ticker}.KS"
         fund = fetch_fundamentals(sig.ticker, yf_symbol=yf_symbol)
         path = build_report(
             sig, df_ind, conf, fund,
             regime_label=result.regime.label_kr if result.regime else "—",
             downgraded=bool(result.regime and result.regime.weak),
+            kelly_hint=kelly_hint_kr(conf),
+            correlation_warning=corr_warn,
         )
         urls[sig.ticker] = report_url(path)
     result.signals.sort(key=lambda s: s.strength, reverse=True)
@@ -213,6 +240,13 @@ def main() -> None:
     backtest.add_argument("--smoke", action="store_true")
     analyze = sub.add_parser("analyze")
     analyze.add_argument("ticker")
+    add = sub.add_parser("position-add")
+    add.add_argument("ticker")
+    add.add_argument("price", type=float)
+    add.add_argument("quantity", type=float)
+    remove = sub.add_parser("position-remove")
+    remove.add_argument("ticker")
+    sub.add_parser("positions-report")
     args = parser.parse_args()
     publish = not args.no_publish
 
@@ -231,8 +265,32 @@ def main() -> None:
             from src.backtest.run_validation import run
 
             run(smoke=args.smoke)
+        elif args.command == "analyze":
+            from src.commands.analyze_cmd import analyze
+            from src.data.store import restore_from_data_branch
+
+            restore_from_data_branch()  # RS percentile needs the stored universe
+            analyze(args.ticker, publish=publish)
+        elif args.command == "position-add":
+            from src.commands.positions_cmd import add_position
+
+            add_position(args.ticker, args.price, args.quantity)
+        elif args.command == "position-remove":
+            from src.commands.positions_cmd import remove_position
+            from src.data.store import restore_from_data_branch
+
+            restore_from_data_branch()  # rebuy state rides the data branch
+            remove_position(args.ticker)
+            if publish:
+                _publish(True)  # persist the cooldown record
+        elif args.command == "positions-report":
+            from src.commands.positions_cmd import positions_report
+            from src.data.store import restore_from_data_branch
+
+            restore_from_data_branch()
+            positions_report()
         else:
-            logger.error("command %r is wired in a later phase", args.command)
+            logger.error("unknown command %r", args.command)
             sys.exit(2)
     except Exception as exc:  # crash guard: alert the owner, then re-raise for CI
         from src.notify import messages, telegram

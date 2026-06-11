@@ -6,12 +6,27 @@ from src.analysis.base_strategy import BaseStrategy, Signal
 from src.analysis.registry import register
 
 
+def _gt(a: float, b: float) -> bool:
+    """NaN-safe a > b."""
+    return pd.notna(a) and pd.notna(b) and a > b
+
+
 @register
 class BreakoutStrategy(BaseStrategy):
     """Buy(ALL): close > prior 60d high (excl. today); vol>1.5x; ADX>20; close>SMA60."""
 
     strategy_id = "breakout"
     name_kr = "돌파"
+
+    def conditions(self, df: pd.DataFrame) -> list[tuple[str, bool]]:
+        row = df.iloc[-1]
+        p = self.params
+        return [
+            (f"종가가 직전 {p['lookback_high']}일 고가 돌파", _gt(row["close"], row["prior_high60"])),
+            (f"거래량 > 평소의 {p['vol_mult']}배", _gt(row["volume"], p["vol_mult"] * row["vol_ma20"])),
+            (f"ADX > {p['adx_min']} (추세 강도)", _gt(row["adx14"], p["adx_min"])),
+            ("주가가 60일선 위", _gt(row["close"], row[f"sma{p['trend_sma']}"])),
+        ]
 
     def should_exit(self, df: pd.DataFrame) -> str | None:
         row = df.iloc[-1]
@@ -20,18 +35,11 @@ class BreakoutStrategy(BaseStrategy):
         return None
 
     def evaluate(self, df: pd.DataFrame, ticker: str, name: str, market: str) -> Signal | None:
+        if not all(ok for _, ok in self.conditions(df)):
+            return None
         row = df.iloc[-1]
         p = self.params
-        required = ["prior_high60", "vol_ma20", "adx14", "sma60", "atr14"]
-        if row[required].isna().any():
-            return None
-        conditions = (
-            row["close"] > row["prior_high60"]
-            and row["volume"] > p["vol_mult"] * row["vol_ma20"]
-            and row["adx14"] > p["adx_min"]
-            and row["close"] > row[f"sma{p['trend_sma']}"]
-        )
-        if not conditions:
+        if pd.isna(row["atr14"]):
             return None
         vol_ratio = float(row["volume"] / row["vol_ma20"])
         breakout_margin = float(row["close"] / row["prior_high60"] - 1.0)

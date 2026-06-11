@@ -6,12 +6,29 @@ from src.analysis.base_strategy import BaseStrategy, Signal
 from src.analysis.registry import register
 
 
+def _gt(a: float, b: float) -> bool:
+    """NaN-safe a > b."""
+    return pd.notna(a) and pd.notna(b) and a > b
+
+
 @register
 class PullbackStrategy(BaseStrategy):
     """Buy(ALL): close>SMA60; SMA20>SMA60; RSI14<40; ADX>20; vol>0.7xVolMA20; close<=BB mid."""
 
     strategy_id = "pullback"
     name_kr = "눌림목"
+
+    def conditions(self, df: pd.DataFrame) -> list[tuple[str, bool]]:
+        row = df.iloc[-1]
+        p = self.params
+        return [
+            ("주가가 60일선 위 (중기 상승)", _gt(row["close"], row[f"sma{p['trend_sma']}"])),
+            ("20일선이 60일선 위 (정배열)", _gt(row[f"sma{p['pull_sma']}"], row[f"sma{p['trend_sma']}"])),
+            (f"RSI < {p['rsi_max']} (단기 조정)", _gt(p["rsi_max"], row["rsi14"])),
+            (f"ADX > {p['adx_min']} (추세 존재)", _gt(row["adx14"], p["adx_min"])),
+            (f"거래량 ≥ 평소의 {p['vol_ratio_min']}배", _gt(row["volume"], p["vol_ratio_min"] * row["vol_ma20"])),
+            ("주가가 볼린저 중심선 이하 (눌림)", _gt(row["bb_mid"], row["close"]) or row["close"] == row["bb_mid"]),
+        ]
 
     def should_exit(self, df: pd.DataFrame) -> str | None:
         row = df.iloc[-1]
@@ -25,21 +42,10 @@ class PullbackStrategy(BaseStrategy):
         return None
 
     def evaluate(self, df: pd.DataFrame, ticker: str, name: str, market: str) -> Signal | None:
+        if not all(ok for _, ok in self.conditions(df)):
+            return None
         row = df.iloc[-1]
         p = self.params
-        required = ["sma20", "sma60", "rsi14", "adx14", "vol_ma20", "bb_mid"]
-        if row[required].isna().any():
-            return None
-        conditions = (
-            row["close"] > row[f"sma{p['trend_sma']}"]
-            and row[f"sma{p['pull_sma']}"] > row[f"sma{p['trend_sma']}"]
-            and row["rsi14"] < p["rsi_max"]
-            and row["adx14"] > p["adx_min"]
-            and row["volume"] > p["vol_ratio_min"] * row["vol_ma20"]
-            and row["close"] <= row["bb_mid"]
-        )
-        if not conditions:
-            return None
         # Deeper RSI dip within an intact trend = stronger setup.
         rsi_depth = (p["rsi_max"] - row["rsi14"]) / p["rsi_max"]  # 0..1
         trend_quality = min(1.0, (row["adx14"] - p["adx_min"]) / 20.0)

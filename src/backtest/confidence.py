@@ -31,6 +31,8 @@ class ConfidenceReport:
     max_drawdown_pct: float
     score: float  # 0..1 multiplier for signal strength
     label_kr: str
+    avg_win: float = float("nan")  # mean winning-trade return (fraction)
+    avg_loss: float = float("nan")  # mean losing-trade return (fraction, negative)
 
     @property
     def low_sample(self) -> bool:
@@ -84,9 +86,13 @@ def ticker_confidence(
         label = f"과거 {n}건 승률 {wr * 100:.0f}% — 양호"
     else:
         label = f"과거 {n}건 승률 {wr * 100:.0f}% — 주의"
+    r = trades["return_pct"]
+    wins, losses = r[r > 0], r[r < 0]
     return ConfidenceReport(
         ticker=ticker, strategy_id=strategy.strategy_id, n_trades=n,
         win_rate=wr, profit_factor=pf, avg_holding_days=stats["avg_holding"],
-        max_drawdown_pct=_trade_sequence_mdd(trades["return_pct"]),
+        max_drawdown_pct=_trade_sequence_mdd(r),
         score=round(score, 3), label_kr=label,
+        avg_win=float(wins.mean()) if len(wins) else float("nan"),
+        avg_loss=float(losses.mean()) if len(losses) else float("nan"),
     )

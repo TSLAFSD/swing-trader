@@ -18,6 +18,18 @@ class ConnorsRsi2Strategy(BaseStrategy):
     strategy_id = "connors_rsi2"
     name_kr = "단기 과매도 반등"
 
+    def conditions(self, df: pd.DataFrame) -> list[tuple[str, bool]]:
+        p = self.params
+        row = df.iloc[-1]
+        market_floor = min(settings.KR_MIN_PRICE, settings.US_MIN_PRICE)
+        return [
+            (f"RSI(2) < {p['rsi2_entry']} (초단기 과매도)",
+             pd.notna(row["rsi2"]) and row["rsi2"] < p["rsi2_entry"]),
+            ("주가가 200일선 위 (장기 상승 추세 필터)",
+             pd.notna(row["sma200"]) and row["close"] > row["sma200"]),
+            ("최소 가격 충족", pd.notna(row["close"]) and row["close"] >= market_floor),
+        ]
+
     def should_exit(self, df: pd.DataFrame) -> str | None:
         row = df.iloc[-1]
         p = self.params
@@ -28,17 +40,12 @@ class ConnorsRsi2Strategy(BaseStrategy):
         return None
 
     def evaluate(self, df: pd.DataFrame, ticker: str, name: str, market: str) -> Signal | None:
+        if not all(ok for _, ok in self.conditions(df)):
+            return None
         row = df.iloc[-1]
         p = self.params
-        if pd.isna(row["rsi2"]) or pd.isna(row["sma200"]):
-            return None
         price_floor = settings.KR_MIN_PRICE if market == "kr" else settings.US_MIN_PRICE
-        conditions = (
-            row["rsi2"] < p["rsi2_entry"]
-            and row["close"] > row["sma200"]
-            and row["close"] >= price_floor
-        )
-        if not conditions:
+        if row["close"] < price_floor:
             return None
         # Deeper RSI(2) and more headroom above SMA200 = stronger.
         rsi_depth = (p["rsi2_entry"] - row["rsi2"]) / p["rsi2_entry"]  # 0..1

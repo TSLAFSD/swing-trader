@@ -1,0 +1,8 @@
+name = "swing-trader-bot"
+main = "worker.js"
+compatibility_date = "2026-06-01"
+
+# Secrets are NOT stored here — register with:
+#   wrangler secret put TELEGRAM_BOT_TOKEN
+#   wrangler secret put ALLOWED_CHAT_ID
+#   wrangler secret put GITHUB_PAT

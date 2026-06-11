@@ -51,6 +51,11 @@
   <h2>🔍 지표 해설</h2>
   <ul>{% for line in indicator_lines %}<li>{{ line }}</li>{% endfor %}</ul>
 
+  {% if checklist %}
+  <h2>✅ 전략별 조건 체크리스트</h2>
+  <ul>{% for line in checklist %}<li>{{ line }}</li>{% endfor %}</ul>
+  {% endif %}
+
   <h2>🏢 펀더멘털</h2>
   <div class="grid">
     {% for k, v in fundamentals %}

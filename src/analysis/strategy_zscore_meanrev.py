@@ -18,6 +18,22 @@ class ZScoreMeanRevStrategy(BaseStrategy):
     strategy_id = "zscore_meanrev"
     name_kr = "Z-Score 평균회귀"
 
+    def conditions(self, df: pd.DataFrame) -> list[tuple[str, bool]]:
+        p = self.params
+        row = df.iloc[-1]
+        prev_close = df.iloc[-2]["close"] if len(df) >= 2 else float("nan")
+        z, vol_ma = row["zscore20"], row["vol_ma20"]
+        market_floor = min(settings.KR_MIN_PRICE, settings.US_MIN_PRICE)
+        recovery = (pd.notna(row["close"]) and row["close"] > row["open"]) or (
+            pd.notna(prev_close) and row["close"] > prev_close
+        )
+        return [
+            (f"z-score < {p['z_entry']} (통계적 극단 과매도)", pd.notna(z) and z < p["z_entry"]),
+            ("반등 양봉 (종가>시가 또는 종가>전일종가)", bool(recovery)),
+            (f"거래량 > 평소의 {p['vol_mult']}배", pd.notna(vol_ma) and row["volume"] > p["vol_mult"] * vol_ma),
+            ("최소 가격 충족", pd.notna(row["close"]) and row["close"] >= market_floor),
+        ]
+
     def should_exit(self, df: pd.DataFrame) -> str | None:
         z = df.iloc[-1]["zscore20"]
         if pd.notna(z) and z > self.params["z_exit"]:
@@ -30,21 +46,13 @@ class ZScoreMeanRevStrategy(BaseStrategy):
         return pd.notna(z) and z > self.params["z_overheat"]
 
     def evaluate(self, df: pd.DataFrame, ticker: str, name: str, market: str) -> Signal | None:
-        if len(df) < 2:
+        if len(df) < 2 or not all(ok for _, ok in self.conditions(df)):
             return None
-        row, prev = df.iloc[-1], df.iloc[-2]
+        row = df.iloc[-1]
         p = self.params
-        if pd.isna(row["zscore20"]) or pd.isna(row["vol_ma20"]):
-            return None
+        # Market-specific price floor (conditions() used the lenient common floor).
         price_floor = settings.KR_MIN_PRICE if market == "kr" else settings.US_MIN_PRICE
-        bullish_recovery = row["close"] > row["open"] or row["close"] > prev["close"]
-        conditions = (
-            row["zscore20"] < p["z_entry"]
-            and bullish_recovery
-            and row["volume"] > p["vol_mult"] * row["vol_ma20"]
-            and row["close"] >= price_floor
-        )
-        if not conditions:
+        if row["close"] < price_floor:
             return None
         z = float(row["zscore20"])
         vol_ratio = float(row["volume"] / row["vol_ma20"])

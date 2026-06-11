@@ -11,13 +11,31 @@ GitHub Actions (cron) + GitHub Pages (reports) + Telegram (alerts) + Cloudflare 
 /opt/homebrew/bin/python3.12 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 
-# Tests
-.venv/bin/pytest tests/ -v
+# Tests (always run before committing)
+.venv/bin/pytest tests/ -q
 
-# Phase 1 verification scripts
-.venv/bin/python tests/smoke_test_phase1.py
-.venv/bin/python tests/mini_backtest_phase1.py
+# Local pipeline runs (--no-publish skips branch pushes)
+.venv/bin/python main.py scan-us --no-publish
+.venv/bin/python main.py analyze AAPL --no-publish
+.venv/bin/python main.py backtest [--smoke]
 ```
+
+## Key invariants (do not break)
+
+- **Scan/backtest single source**: backtester generates entries by calling the
+  SAME strategy.evaluate() per bar prefix; strategy thresholds live ONLY in
+  config/strategies.yaml. conditions() is the checklist evaluate() consumes.
+- **Exit parity**: live position monitoring and backtests both go through
+  src/risk/exit_engine.check_exit() + strategy.should_exit().
+- **Restore before publish**: any data-branch writer must call
+  restore_from_data_branch() first — fresh runner checkouts would otherwise
+  clobber the long-term archive (force-push semantics).
+- **No forward-fill** of market data, ever. Short history -> NaN -> excluded.
+- **Health check every scan** (zero signals included); gap guard is the ONLY
+  silent-when-empty job.
+- **Telegram top-5 rule**: scan message bodies carry at most 5 signal cards.
+- **MC gate sizing**: Monte Carlo uses 10% equity per trade
+  (settings.VAL_MC_TRADE_FRACTION, owner-approved 2026-06-12).
 
 ## Dependency lock notes (Phase 1, 2026-06-11)
 

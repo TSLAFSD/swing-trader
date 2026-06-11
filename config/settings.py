@@ -84,7 +84,9 @@ GAP_ALERT_PCT = 3.0
 
 # --- Positions ------------------------------------------------------------
 POSITIONS_FILE = REPO_ROOT / "config" / "positions.yaml"
-REBUY_COOLDOWN_DAYS = 0  # 0 = off (Phase 6 wires the cooldown check)
+REBUY_COOLDOWN_DAYS = 0  # 0 = off; >0 blocks re-signals for N days after /remove
+POSITION_DEFAULT_STOP_PCT = 5.0  # /add default stop (editable in positions.yaml)
+POSITION_DEFAULT_TARGET_PCT = 15.0  # /add default target
 
 # --- Telegram (send-only; secrets via env) -----------------------------
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")

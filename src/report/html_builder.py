@@ -79,8 +79,9 @@ def build_report(
     regime_label: str,
     downgraded: bool,
     strategy_ranking: list[dict] | None = None,
-    kelly_hint: str = "Phase 6에서 제공 예정",
+    kelly_hint: str = "표본 부족 — 제안 불가",
     correlation_warning: str | None = None,
+    checklist: list[str] | None = None,
 ) -> Path:
     """Render one signal's HTML report to REPORTS_OUT_DIR.
 
@@ -109,6 +110,7 @@ def build_report(
         tags=signal.tags,
         chart_html=chart,
         indicator_lines=summarize_kr(last, market),
+        checklist=checklist or [],
         fundamentals=_fundamentals_rows(fundamentals, market, float(last["close"])),
         reason=signal.reason,
         strategy_ranking=strategy_ranking or [],

@@ -88,6 +88,30 @@ class BaseStrategy(ABC):
             Signal if entry conditions are all met on the last bar, else None.
         """
 
+    @abstractmethod
+    def conditions(self, df: pd.DataFrame) -> list[tuple[str, bool]]:
+        """Labeled entry conditions on the LAST bar (single source of truth).
+
+        evaluate() consumes this; /analyze renders it as a Korean checklist
+        ("6개 조건 중 4개 충족" style). NaN inputs make a condition False.
+
+        Args:
+            df: compute_indicators() frame, ascending date order.
+
+        Returns:
+            [(condition label in Korean, satisfied?), ...] in display order.
+        """
+
+    def checklist_kr(self, df: pd.DataFrame) -> str:
+        """One-line Korean checklist summary for /analyze."""
+        checks = self.conditions(df)
+        met = sum(1 for _, ok in checks if ok)
+        failed = [label for label, ok in checks if not ok]
+        head = f"{self.name_kr}: {len(checks)}개 조건 중 {met}개 충족"
+        if failed:
+            head += f" — 미충족: {', '.join(failed)}"
+        return head
+
     def should_exit(self, df: pd.DataFrame) -> str | None:
         """Strategy-specific sell condition on the LAST bar (None = hold).
 

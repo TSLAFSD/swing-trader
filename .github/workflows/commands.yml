@@ -1,0 +1,60 @@
+# Telegram command executor — triggered by the Cloudflare Worker via
+# repository_dispatch. Replies to the owner through Telegram when done.
+# Alerts work fully even if the Worker is never deployed (this just won't fire).
+name: commands
+
+on:
+  repository_dispatch:
+    types: [telegram-command]
+
+concurrency:
+  group: data-storage-branch # /add /remove mutate positions.yaml + data branch
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  execute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Execute command
+        env:
+          CMD: ${{ github.event.client_payload.command }}
+          ARGS: ${{ join(github.event.client_payload.args, ' ') }}
+        run: |
+          set -euo pipefail
+          echo "command: $CMD args: $ARGS"
+          read -ra A <<< "$ARGS"
+          case "$CMD" in
+            /add)      python main.py position-add "${A[0]}" "${A[1]}" "${A[2]}" 2>&1 | tee run.log ;;
+            /remove)   python main.py position-remove "${A[0]}" 2>&1 | tee run.log ;;
+            /positions) python main.py positions-report 2>&1 | tee run.log ;;
+            /scan)     python main.py "scan-${A[0]}" 2>&1 | tee run.log ;;
+            /analyze)  python main.py analyze "${A[0]}" 2>&1 | tee run.log ;;
+            *) echo "unknown command $CMD" | tee run.log; exit 1 ;;
+          esac
+      - name: Commit positions.yaml if changed
+        run: |
+          if ! git diff --quiet config/positions.yaml; then
+            git config user.email "pipeline@swing-trader"
+            git config user.name "swing-trader pipeline"
+            git add config/positions.yaml
+            git commit -m "positions: ${{ github.event.client_payload.command }} via Telegram"
+            git push
+          fi
+      - name: Failure alert (Telegram)
+        if: failure()
+        run: python -m src.notify.error_alert "텔레그램 명령(${{ github.event.client_payload.command }})" run.log
