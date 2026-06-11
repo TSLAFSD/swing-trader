@@ -1,0 +1,85 @@
+# Per-strategy parameters — SINGLE SOURCE OF TRUTH shared by the live scanner
+# and the backtesting.py adapters. Never duplicate these thresholds in code.
+#
+# enabled: true is allowed ONLY after passing all Phase-4 validation gates.
+# Hard cap: max 7 strategies enabled simultaneously (confluence counts).
+# All strategies start disabled until Phase 4 validation runs.
+
+confluence:
+  enabled: false          # meta-strategy merge layer (counts toward the 7-cap)
+  min_strategies: 2       # >= N base strategies firing same ticker same day
+  bonus_multiplier: 1.2   # merged strength = min(100, sum(strengths) * bonus)
+
+strategies:
+  pullback:               # ① 눌림목
+    enabled: false
+    exit_mode: fixed
+    min_bars: 150
+    params:
+      trend_sma: 60       # close > SMA60 and SMA20 > SMA60
+      pull_sma: 20
+      rsi_len: 14
+      rsi_max: 40
+      adx_min: 20
+      vol_ratio_min: 0.7  # volume > 0.7 x VolMA20
+      stop_loss_pct: 5.0
+      take_profit_pct: 15.0
+      rsi_exit: 70
+
+  zscore_meanrev:         # ② Z-Score 평균회귀
+    enabled: false
+    exit_mode: fixed
+    min_bars: 60
+    params:
+      z_entry: -2.5       # statistical extreme oversold
+      vol_mult: 1.5       # volume > 1.5 x VolMA20
+      z_exit: 0.0         # mean reversion exit
+      z_overheat: 2.5     # sell-side alert for held positions
+      stop_loss_pct: 7.0
+      time_stop_days: 10
+
+  connors_rsi2:           # ③ 단기 과매도 반등 (Larry Connors RSI(2))
+    enabled: false
+    exit_mode: fixed
+    min_bars: 250         # SMA200-dependent
+    params:
+      rsi2_entry: 10
+      rsi2_exit: 65
+      exit_sma: 5         # close > SMA5 also exits
+      stop_loss_pct: 6.0
+      time_stop_days: 7
+
+  breakout:               # ④ 돌파
+    enabled: false
+    exit_mode: atr_trailing
+    min_bars: 150
+    params:
+      lookback_high: 60   # close > prior 60-day high (excl. today)
+      vol_mult: 1.5
+      adx_min: 20
+      trend_sma: 60
+      atr_k: 3.0          # chandelier multiplier
+      time_stop_days: 20
+
+  squeeze:                # ⑤ 변동성 스퀴즈 (TTM-style)
+    enabled: false
+    exit_mode: atr_trailing
+    min_bars: 150
+    params:
+      squeeze_min_days: 5   # BB fully inside KC for >= N days
+      vol_mult: 1.2
+      linreg_len: 20        # momentum proxy: linreg slope > 0
+      atr_k: 3.0
+      time_stop_days: 15
+
+  wyckoff_spring:         # ⑥ 와이코프 스프링 (mechanizable subset only)
+    enabled: false
+    exit_mode: atr_trailing
+    min_bars: 150
+    params:
+      range_days: 60
+      range_max_width_pct: 15.0  # range (high-low)/low < this
+      spring_lookback: 3         # low broke range low within last N days
+      vol_mult: 1.2
+      atr_k: 3.0
+      time_stop_days: 15

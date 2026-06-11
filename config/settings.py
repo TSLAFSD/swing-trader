@@ -41,6 +41,13 @@ HISTORY_YEARS = 3  # default depth for initial fetch / backtests
 # --- Data quality ------------------------------------------------------
 ANOMALY_DAILY_MOVE_PCT = 30.0  # 1-day move beyond +-30% -> exclude from signals, flag
 
+# --- Signal-quality layers ----------------------------------------------
+RS_PERCENTILE_FLOOR = 30.0  # BUY candidates below this momentum percentile...
+RS_FLOOR_ACTION = "drop"  # ..."drop" or "downgrade" (x0.7 strength)
+RS_DOWNGRADE_FACTOR = 0.7
+EARNINGS_WARN_DAYS = 5  # trading days; best-effort tag, never blocks
+SCAN_TOP_N = 10  # ranked signals kept per scan (Telegram shows top 5)
+
 # --- Telegram (send-only; secrets via env) -----------------------------
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
