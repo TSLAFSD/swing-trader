@@ -1,0 +1,19 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Secrets
+.env
+
+# Local data (market data lives on the orphan `data` branch, never on main)
+data/
+*.parquet
+*.duckdb
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
