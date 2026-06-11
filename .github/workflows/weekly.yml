@@ -1,0 +1,38 @@
+# Weekly maintenance: 일요일 04:00 KST = Saturday 19:00 UTC.
+# Strategy re-validation, live-tracking report, circuit-breaker review,
+# universe cache refresh, data compaction (no deletion — retention is forever).
+name: weekly
+
+on:
+  schedule:
+    - cron: "0 19 * * 6"
+  workflow_dispatch:
+
+concurrency:
+  group: data-storage-branch
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  weekly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300 # full re-validation is the long pole
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run weekly job
+        run: python main.py weekly 2>&1 | tee run.log
+      - name: Failure alert (Telegram)
+        if: failure()
+        run: python -m src.notify.error_alert "주간 점검" run.log

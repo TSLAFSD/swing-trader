@@ -1,0 +1,36 @@
+# US confirmed scan (Russell 1000): 화-토 07:00 KST = Mon-Fri 22:00 UTC.
+name: us-close
+
+on:
+  schedule:
+    - cron: "0 22 * * 1-5"
+  workflow_dispatch:
+
+concurrency:
+  group: data-storage-branch
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run US confirmed scan
+        run: python main.py scan-us 2>&1 | tee run.log
+      - name: Failure alert (Telegram)
+        if: failure()
+        run: python -m src.notify.error_alert "미국 정규 스캔" run.log

@@ -1,0 +1,37 @@
+# KR preliminary scan: 평일 12:30 KST = 03:30 UTC.
+# Signals are tagged 예비(미확정); cron lag 15-30 min is tolerated by design.
+name: kr-midday
+
+on:
+  schedule:
+    - cron: "30 3 * * 1-5"
+  workflow_dispatch:
+
+concurrency:
+  group: data-storage-branch
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run KR preliminary scan
+        run: python main.py scan-kr-midday 2>&1 | tee run.log
+      - name: Failure alert (Telegram)
+        if: failure()
+        run: python -m src.notify.error_alert "한국 예비 스캔" run.log

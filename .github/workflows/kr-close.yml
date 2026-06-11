@@ -1,0 +1,37 @@
+# KR confirmed scan (main): 평일 15:40 KST = 06:40 UTC.
+# NOTE: Actions cron can lag 15-30 min at busy times — acceptable for EOD data.
+name: kr-close
+
+on:
+  schedule:
+    - cron: "40 6 * * 1-5"
+  workflow_dispatch:
+
+concurrency:
+  group: data-storage-branch # serialize all data-branch / positions writers
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run KR confirmed scan
+        run: python main.py scan-kr 2>&1 | tee run.log
+      - name: Failure alert (Telegram)
+        if: failure()
+        run: python -m src.notify.error_alert "한국 정규 스캔" run.log

@@ -120,6 +120,44 @@ class ParquetStore:
         return pd.to_datetime(df["date"]).max().date()
 
 
+def restore_from_data_branch(store_root: Path | None = None) -> bool:
+    """Restore the persisted store from the orphan `data` branch into DATA_ROOT.
+
+    MUST run before any scan on a fresh checkout (Actions runner): the branch
+    is the long-term archive, and publish_to_data_branch() force-pushes the
+    LOCAL store — without restoring first, accumulated history (3y+ retention)
+    would be clobbered by a single day's fetch window.
+
+    Local files are not overwritten when present-and-newer is irrelevant:
+    parquet years are whole files, and the subsequent upsert() merges anyway.
+
+    Returns:
+        True if the branch existed and was restored; False when absent (first
+        run) — callers proceed with an empty store.
+    """
+    from src.data.git_remote import authenticated_remote_url
+
+    root = store_root or settings.DATA_ROOT
+    remote_url = authenticated_remote_url(settings.REPO_ROOT)
+    with tempfile.TemporaryDirectory(prefix="data-restore-") as tmp:
+        clone = subprocess.run(
+            ["git", "clone", "--depth", "1", "--branch", settings.DATA_BRANCH, remote_url, tmp],
+            capture_output=True, text=True,
+        )
+        if clone.returncode != 0:
+            logger.warning("data branch absent or unreachable — starting with empty store")
+            return False
+        copied = 0
+        for src in Path(tmp).rglob("*"):
+            if src.is_file() and src.suffix in (".parquet", ".json"):
+                dest = root / src.relative_to(tmp)
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, dest)
+                copied += 1
+    logger.info("data branch restored: %d files into %s", copied, root)
+    return True
+
+
 def publish_to_data_branch(store_root: Path | None = None) -> None:
     """Publish DATA_ROOT to the orphan `data` branch as one squashed commit.
 
@@ -131,18 +169,18 @@ def publish_to_data_branch(store_root: Path | None = None) -> None:
     root = store_root or settings.DATA_ROOT
     if not root.exists() or not any(root.rglob("*.parquet")):
         raise FileNotFoundError(f"no parquet data under {root}; nothing to publish")
+    from src.data.git_remote import authenticated_remote_url
+
     repo_root = settings.REPO_ROOT
-    remote_url = subprocess.run(
-        ["git", "remote", "get-url", settings.DATA_BRANCH_REMOTE],
-        cwd=repo_root, capture_output=True, text=True, check=True,
-    ).stdout.strip()
+    remote_url = authenticated_remote_url(repo_root)
 
     with tempfile.TemporaryDirectory(prefix="data-branch-") as tmp:
         tmp_path = Path(tmp)
-        for src in root.rglob("*.parquet"):
-            dest = tmp_path / src.relative_to(root)
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, dest)
+        for pattern in ("*.parquet", "*.json"):  # market data + breaker/state files
+            for src in root.rglob(pattern):
+                dest = tmp_path / src.relative_to(root)
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, dest)
         (tmp_path / "README.md").write_text(
             "# data branch\n\nSingle squashed commit of market data (Parquet). "
             "Force-pushed by the pipeline; do not commit here manually.\n"

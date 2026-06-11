@@ -19,7 +19,10 @@ logger = logging.getLogger(__name__)
 
 SIGNALS_FILE = settings.DATA_ROOT / "signals" / "signals.parquet"
 
-COLUMNS = ["signal_date", "ticker", "market", "strategy_id", "strength", "price"]
+COLUMNS = [
+    "signal_date", "ticker", "market", "strategy_id", "strength", "price",
+    "stop_loss", "take_profit",
+]
 
 
 def record_signals(signals: list[Signal], path: Path | None = None) -> int:
@@ -38,6 +41,8 @@ def record_signals(signals: list[Signal], path: Path | None = None) -> int:
                 "strategy_id": s.strategy_id,
                 "strength": s.strength,
                 "price": s.price,
+                "stop_loss": s.suggested_stop_loss,
+                "take_profit": s.suggested_take_profit,
             }
             for s in signals
         ],

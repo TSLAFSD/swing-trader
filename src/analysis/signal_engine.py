@@ -41,6 +41,7 @@ class ScanResult:
     rs_dropped: list[str] = field(default_factory=list)
     breadth_pct: float | None = None
     regime: RegimeState | None = None
+    signal_frames: dict[str, pd.DataFrame] = field(default_factory=dict)  # for reports
 
 
 def _passes_prescan(df: pd.DataFrame, market: str) -> bool:
@@ -107,35 +108,43 @@ def scan_market(
     ohlcv["date"] = pd.to_datetime(ohlcv["date"]).dt.date
     scan_date = ohlcv["date"].max()
 
-    frames: dict[str, pd.DataFrame] = {}
+    # Memory discipline (8GB rule): only per-ticker CLOSES (RS momentum) and
+    # breadth counters survive the loop; full indicator frames are kept ONLY
+    # for tickers that produced a signal (needed for reports).
+    signal_frames: dict[str, pd.DataFrame] = {}
     closes: dict[str, pd.Series] = {}
     anomalies: list[str] = []
     raw_signals: list[Signal] = []
+    breadth_above = breadth_total = 0
+    total_scanned = 0
 
     tickers = sorted(ohlcv["ticker"].unique())
     logger.info("scan %s: %d tickers, %d strategies", market, len(tickers), len(strategies))
-    for ticker in tickers:  # sequential by design (8GB rule)
-        df = (
-            ohlcv[ohlcv["ticker"] == ticker]
-            .sort_values("date")
-            .reset_index(drop=True)
-        )
+    grouped = ohlcv.groupby("ticker", sort=True)
+    for ticker, df in grouped:  # sequential by design (8GB rule)
+        df = df.sort_values("date").reset_index(drop=True)
         # Halted-ticker guard: must have a bar on the market's latest trading day.
         if df["date"].iloc[-1] != scan_date:
             continue
         if not _passes_prescan(df, market):
             continue
         df = ind.compute_indicators(df)
-        frames[ticker] = df
+        total_scanned += 1
         closes[ticker] = df["close"]
+        last = df.iloc[-1]
+        if pd.notna(last["sma60"]):
+            breadth_total += 1
+            if last["close"] > last["sma60"]:
+                breadth_above += 1
 
-        last_move = df["pct_change_1d"].iloc[-1]
+        last_move = last["pct_change_1d"]
         if pd.notna(last_move) and abs(last_move) > settings.ANOMALY_DAILY_MOVE_PCT:
             anomalies.append(ticker)
             logger.warning("anomaly guard: %s 1-day move %+.1f%% — excluded today", ticker, last_move)
             continue
 
         display = names.get(ticker, ticker)
+        fired = False
         for strategy in strategies:
             if not strategy.eligible(df):
                 continue
@@ -146,6 +155,9 @@ def scan_market(
                 continue
             if sig is not None:
                 raw_signals.append(sig)
+                fired = True
+        if fired:
+            signal_frames[ticker] = df
 
     signals = apply_confluence(raw_signals, config)
 
@@ -171,7 +183,7 @@ def scan_market(
     signals = filtered
 
     # Layer 2: regime downgrade.
-    breadth = ind.breadth_pct(frames)
+    breadth = (breadth_above / breadth_total * 100.0) if breadth_total else float("nan")
     regime = get_regime(market, breadth) if fetch_regime else None
     if regime is not None and regime.downgrade_factor < 1.0:
         for sig in signals:
@@ -189,16 +201,17 @@ def scan_market(
     top = signals[: settings.SCAN_TOP_N]
     logger.info(
         "scan %s done: %d scanned, %d signals (%d kept), %d anomalies, breadth %.1f%%",
-        market, len(frames), len(signals), len(top), len(anomalies),
+        market, total_scanned, len(signals), len(top), len(anomalies),
         breadth if breadth == breadth else float("nan"),
     )
     return ScanResult(
         market=market,
         scan_date=scan_date,
         signals=top,
-        total_scanned=len(frames),
+        total_scanned=total_scanned,
         anomalies=anomalies,
         rs_dropped=rs_dropped,
         breadth_pct=breadth,
         regime=regime,
+        signal_frames={s.ticker: signal_frames[s.ticker] for s in top if s.ticker in signal_frames},
     )

@@ -1,0 +1,31 @@
+# US Gap Guard (§11.1): 평일 16:30 KST = 07:30 UTC, just before US pre-market.
+# Price re-check ONLY (no signal recomputation, no data-branch writes —
+# hence no concurrency group). Silent when there were no US signals.
+name: us-premarket
+
+on:
+  schedule:
+    - cron: "30 7 * * 1-5"
+  workflow_dispatch:
+
+jobs:
+  gap-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # read-only restore of the data branch
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run gap guard
+        run: python main.py gap-guard-us 2>&1 | tee run.log
+      - name: Failure alert (Telegram)
+        if: failure()
+        run: python -m src.notify.error_alert "미국 프리마켓 갭 체크" run.log
