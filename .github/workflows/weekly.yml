@@ -1,11 +1,11 @@
-# Weekly maintenance: 일요일 04:00 KST = Saturday 19:00 UTC.
+# Weekly maintenance: 일요일 04:07 KST = Saturday 19:07 UTC (+7분 혼잡 회피).
 # Strategy re-validation, live-tracking report, circuit-breaker review,
 # universe cache refresh, data compaction (no deletion — retention is forever).
 name: weekly
 
 on:
   schedule:
-    - cron: "0 19 * * 6"
+    - cron: "7 19 * * 6"
   workflow_dispatch:
 
 concurrency:

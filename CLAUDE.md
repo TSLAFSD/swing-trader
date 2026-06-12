@@ -88,13 +88,15 @@ GitHub Actions (cron) + GitHub Pages (reports) + Telegram (alerts) + Cloudflare 
 
 | Workflow | KST | UTC cron |
 |---|---|---|
-| kr-midday.yml | 평일 12:30 | `30 3 * * 1-5` |
-| kr-close.yml | 평일 15:40 | `40 6 * * 1-5` |
-| us-close.yml | 화–토 07:00 | `0 22 * * 1-5` |
-| us-premarket.yml | 평일 16:30 | `30 7 * * 1-5` |
-| weekly.yml | 일 04:00 | `0 19 * * 6` |
+| kr-midday.yml | 평일 12:37 | `37 3 * * 1-5` |
+| kr-close.yml | 평일 15:47 | `47 6 * * 1-5` |
+| us-close.yml | 화–토 07:07 | `7 22 * * 1-5` |
+| us-premarket.yml | 평일 16:37 | `37 7 * * 1-5` |
+| weekly.yml | 일 04:07 | `7 19 * * 6` |
 
-Actions cron can lag 15–30 min at busy times; the 12:30 preliminary scan tolerates this.
+Minutes shifted +7 off :00/:30 congestion (U7 mitigation — multi-hour lags were
+observed on a fresh repo). Actions cron can still lag; the preliminary scan
+tolerates this by design.
 
 ## Data-branch convention
 

@@ -1,9 +1,9 @@
-# US confirmed scan (Russell 1000): 화-토 07:00 KST = Mon-Fri 22:00 UTC.
+# US confirmed scan (Russell 1000): 화-토 07:07 KST = Mon-Fri 22:07 UTC (+7분 혼잡 회피).
 name: us-close
 
 on:
   schedule:
-    - cron: "0 22 * * 1-5"
+    - cron: "7 22 * * 1-5"
   workflow_dispatch:
 
 concurrency:

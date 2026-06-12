@@ -1,11 +1,11 @@
-# US Gap Guard (§11.1): 평일 16:30 KST = 07:30 UTC, just before US pre-market.
+# US Gap Guard (§11.1): 평일 16:37 KST = 07:37 UTC, just before US pre-market (+7분 혼잡 회피).
 # Price re-check ONLY (no signal recomputation, no data-branch writes —
 # hence no concurrency group). Silent when there were no US signals.
 name: us-premarket
 
 on:
   schedule:
-    - cron: "30 7 * * 1-5"
+    - cron: "37 7 * * 1-5"
   workflow_dispatch:
 
 jobs:

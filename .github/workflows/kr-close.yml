@@ -1,10 +1,10 @@
-# KR confirmed scan (main): 평일 15:40 KST = 06:40 UTC.
+# KR confirmed scan (main): 평일 15:47 KST = 06:47 UTC (+7분 혼잡 회피).
 # NOTE: Actions cron can lag 15-30 min at busy times — acceptable for EOD data.
 name: kr-close
 
 on:
   schedule:
-    - cron: "40 6 * * 1-5"
+    - cron: "47 6 * * 1-5"
   workflow_dispatch:
 
 concurrency:

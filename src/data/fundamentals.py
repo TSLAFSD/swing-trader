@@ -65,16 +65,22 @@ def fetch_fundamentals(ticker: str, yf_symbol: str | None = None, market: str = 
     )
     # KR supplement (A-1): yfinance valuation fields are usually empty for
     # KRX tickers — fill PER/PBR/배당 from pykrx, best-effort, never blocks.
+    # NOTE (2026-06-12): KRX currently serves non-JSON to the fundamental
+    # endpoint (login-gated) — this path is kept for if/when it unblocks;
+    # pykrx's internal error print is silenced via redirect.
     if market == "kr" and (fund.per is None or fund.pbr is None or fund.dividend_yield is None):
         try:
+            import contextlib
+            import io
             from datetime import date, timedelta
 
             from pykrx import stock
 
             end = date.today()
-            df = stock.get_market_fundamental(
-                (end - timedelta(days=10)).strftime("%Y%m%d"), end.strftime("%Y%m%d"), ticker
-            )
+            with contextlib.redirect_stdout(io.StringIO()):
+                df = stock.get_market_fundamental(
+                    (end - timedelta(days=10)).strftime("%Y%m%d"), end.strftime("%Y%m%d"), ticker
+                )
             if df is not None and not df.empty:
                 row = df.iloc[-1]
                 if fund.per is None and row.get("PER", 0) > 0:
@@ -85,4 +91,15 @@ def fetch_fundamentals(ticker: str, yf_symbol: str | None = None, market: str = 
                     fund.dividend_yield = float(row["DIV"])
         except Exception:
             logger.debug("fundamentals: pykrx supplement failed for %s (best-effort)", ticker, exc_info=True)
+    # KR market cap fallback via FDR KRX listing (Marcap, KRW).
+    if market == "kr" and fund.market_cap is None:
+        try:
+            import FinanceDataReader as fdr
+
+            listing = fdr.StockListing("KRX")
+            row = listing[listing["Code"].astype(str).str.zfill(6) == ticker]
+            if not row.empty and float(row["Marcap"].iloc[0]) > 0:
+                fund.market_cap = float(row["Marcap"].iloc[0])
+        except Exception:
+            logger.debug("fundamentals: FDR marcap fallback failed for %s", ticker, exc_info=True)
     return fund
