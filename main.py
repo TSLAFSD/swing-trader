@@ -66,6 +66,7 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
     store = ParquetStore()
     start = date.today() - timedelta(days=365 * settings.HISTORY_YEARS)
     kr_third = False
+    kr_markets: dict[str, str] = {}  # ticker -> KOSPI | KOSDAQ (yfinance suffix)
     if market == "us":
         from src.data.us_fetcher import fetch_us_ohlcv
 
@@ -75,8 +76,8 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
         from src.data.kr_fetcher import fetch_kr_ohlcv, yfinance_fallback_used
 
         universe = load_kr_universe()
-        markets = dict(zip(universe["ticker"], universe["market"]))
-        ohlcv, sources = fetch_kr_ohlcv(universe["ticker"].tolist(), start=start, markets=markets)
+        kr_markets = dict(zip(universe["ticker"], universe["market"]))
+        ohlcv, sources = fetch_kr_ohlcv(universe["ticker"].tolist(), start=start, markets=kr_markets)
         kr_third = yfinance_fallback_used(sources)
     if ohlcv.empty:
         raise RuntimeError(f"scan-{market}: all data sources failed — no data fetched")
@@ -129,7 +130,11 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
             corr_warn = correlation_warning(sig.ticker, closes, held, names)
             if corr_warn:
                 sig.tags.append(corr_warn)
-        yf_symbol = sig.ticker if market == "us" else f"{sig.ticker}.KS"
+        if market == "us":
+            yf_symbol = sig.ticker
+        else:  # KOSPI -> .KS, KOSDAQ -> .KQ
+            suffix = ".KQ" if kr_markets.get(sig.ticker) == "KOSDAQ" else ".KS"
+            yf_symbol = f"{sig.ticker}{suffix}"
         fund = fetch_fundamentals(sig.ticker, yf_symbol=yf_symbol)
         path = build_report(
             sig, df_ind, conf, fund,

@@ -123,9 +123,14 @@ def analyze(ticker: str, publish: bool = True) -> None:
         profit_factor=float("nan"), avg_holding_days=float("nan"),
         max_drawdown_pct=float("nan"), score=0.0, label_kr="과거 시그널 없음",
     )
-    yf_symbol = ticker if market == "us" else f"{ticker}.KS"
+    if market == "us":
+        fund = fetch_fundamentals(ticker)
+    else:  # exchange unknown for arbitrary KR codes: try KOSPI, then KOSDAQ
+        fund = fetch_fundamentals(ticker, yf_symbol=f"{ticker}.KS")
+        if fund.market_cap is None and fund.week52_high is None:
+            fund = fetch_fundamentals(ticker, yf_symbol=f"{ticker}.KQ")
     path = build_report(
-        pseudo, df_ind, conf_for_report, fetch_fundamentals(ticker, yf_symbol=yf_symbol),
+        pseudo, df_ind, conf_for_report, fund,
         regime_label=regime.label_kr, downgraded=False,
         strategy_ranking=ranking, kelly_hint=kelly_hint_kr(conf_for_report),
         checklist=checklist,
