@@ -115,11 +115,31 @@ def build_report(
     Returns:
         Path of the written file (random-hash name).
     """
+    import json
+
+    from src.report.lw_chart import (
+        _weekly_frame,
+        prepare_chart_payload,
+        vpa_diagnosis,
+        weekly_lines_kr,
+    )
+
     market = signal.market
     last = df_ind.iloc[-1]
-    chart = build_chart_html(
-        df_ind, markers=[{"date": signal.signal_date, "kind": "BUY", "price": signal.price}]
-    )
+    chart = chart_payload = None
+    if settings.CHART_BACKEND == "lightweight":
+        try:
+            chart_payload = json.dumps(prepare_chart_payload(df_ind, signal), ensure_ascii=False)
+        except Exception:
+            logger.exception("lightweight chart payload failed — falling back to plotly")
+    if chart_payload is None:  # plotly fallback (rollback path, retained by spec)
+        chart = build_chart_html(
+            df_ind, markers=[{"date": signal.signal_date, "kind": "BUY", "price": signal.price}]
+        )
+    daily = df_ind[["date", "open", "high", "low", "close", "volume"]]
+    weekly = _weekly_frame(daily)
+    diagnosis = vpa_diagnosis(daily, weekly)
+    weekly_lines = weekly_lines_kr(weekly)
     target = (
         _fmt_price(signal.suggested_take_profit, market)
         if signal.suggested_take_profit
@@ -145,6 +165,10 @@ def build_report(
         confidence_label=f"{confidence.score:.2f}",
         tags=signal.tags,
         chart_html=chart,
+        chart_payload=chart_payload,
+        lw_cdn=settings.LW_CHARTS_CDN,
+        vpa={"stages": diagnosis["stages"], "weekly_context": diagnosis["weekly_context"]},
+        weekly_lines=weekly_lines,
         indicator_lines=summarize_kr(last, market),
         checklist=checklist or [],
         fundamentals=_fundamentals_rows(fundamentals, market, float(last["close"]), df_ind),

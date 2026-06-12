@@ -2,116 +2,267 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>{{ name }} ({{ ticker }}) — 분석 리포트</title>
+{% if chart_payload %}<script src="{{ lw_cdn }}"></script>{% endif %}
 <style>
-  :root { color-scheme: dark; }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: #0d1117; color: #e6edf3;
-         font-family: -apple-system, "Apple SD Gothic Neo", sans-serif; font-size: 15px; line-height: 1.55; }
-  .wrap { max-width: 760px; margin: 0 auto; padding: 14px; }
-  h1 { font-size: 1.25rem; margin: 0 0 2px; }
-  h2 { font-size: 1.0rem; margin: 22px 0 8px; color: #8ab4f8; border-bottom: 1px solid #21262d; padding-bottom: 4px; }
-  .meta { color: #8b949e; font-size: 0.82rem; }
-  .badges { margin: 8px 0; }
-  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.78rem;
-           margin: 2px 4px 2px 0; background: #1f2937; border: 1px solid #30363d; }
-  .badge.strategy { background: #1d4ed8; border-color: #1d4ed8; }
-  .badge.warn { background: #7c2d12; border-color: #9a3412; }
-  .badge.ok { background: #14532d; border-color: #166534; }
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .card { background: #161b22; border: 1px solid #21262d; border-radius: 10px; padding: 10px 12px; }
-  .card .k { color: #8b949e; font-size: 0.75rem; }
-  .card .v { font-size: 1.05rem; font-weight: 600; margin-top: 2px; }
-  ul { padding-left: 18px; margin: 6px 0; }
-  li { margin: 3px 0; }
-  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #21262d; }
-  th { color: #8b949e; font-weight: 500; }
-  .warn-box { background: #2d1b0e; border: 1px solid #9a3412; border-radius: 10px; padding: 10px 12px; margin: 8px 0; }
-  .disclaimer { color: #8b949e; font-size: 0.75rem; margin-top: 28px; padding-top: 10px; border-top: 1px solid #21262d; }
-  .chart { margin: 0 -6px; }
+  :root { color-scheme: dark;
+    --bg:#0b0e13; --card:#141922; --line:#222a36; --text:#e8edf4; --dim:#8b96a5;
+    --accent:#5aa2ff; --up:#26a69a; --down:#ef5350; --warn:#e8a23d; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif;
+         font-size:15px; line-height:1.6; }
+  .wrap { max-width:760px; margin:0 auto; padding:14px 14px 90px; }
+  .hero { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; }
+  .hero .title { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .hero h1 { font-size:1.3rem; margin:0; }
+  .hero .gradechip { font-size:1.5rem; font-weight:800; color:var(--accent); }
+  .hero .meta { color:var(--dim); font-size:.8rem; margin-top:2px; }
+  .grid4 { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+  .cell { background:#0f141c; border:1px solid var(--line); border-radius:12px; padding:10px 12px; }
+  .cell .k { color:var(--dim); font-size:.72rem; }
+  .cell .v { font-size:.98rem; font-weight:650; margin-top:2px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:16px;
+            padding:14px 16px; margin-top:12px; }
+  h2 { font-size:.95rem; margin:0 0 10px; color:var(--accent); font-weight:700; }
+  ul { padding-left:18px; margin:6px 0; } li { margin:4px 0; }
+  table { width:100%; border-collapse:collapse; font-size:.85rem; }
+  th,td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+  th { color:var(--dim); font-weight:500; }
+  .stage { display:flex; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); }
+  .stage:last-child { border-bottom:none; }
+  .stage .mark { font-size:1rem; }
+  .stage .lbl { font-weight:600; font-size:.88rem; }
+  .stage .val { color:var(--dim); font-size:.8rem; }
+  .ctx { color:var(--dim); font-size:.82rem; margin-top:8px; border-top:1px dashed var(--line); padding-top:8px; }
+  .warnbox { background:#241a10; border:1px solid #5b431f; border-radius:12px; padding:10px 12px; margin:8px 0; }
+  details { margin-top:12px; background:var(--card); border:1px solid var(--line); border-radius:16px; }
+  details summary { padding:14px 16px; cursor:pointer; color:var(--accent); font-weight:700; font-size:.95rem; }
+  details .inner { padding:0 16px 14px; }
+  .chartbox { background:var(--card); border:1px solid var(--line); border-radius:16px;
+              padding:10px 6px 6px; margin-top:12px; }
+  .chartbar { display:flex; gap:6px; padding:0 8px 8px; flex-wrap:wrap; }
+  .chartbar button { background:#0f141c; color:var(--text); border:1px solid var(--line);
+                     border-radius:8px; padding:6px 11px; font-size:.8rem; }
+  .chartbar button.on { border-color:var(--accent); color:var(--accent); font-weight:700; }
+  #lwchart { width:100%; height:640px; }
+  .disclaimer { color:var(--dim); font-size:.72rem; margin-top:20px; line-height:1.55; }
+  .badgechip { display:inline-block; background:#0f141c; border:1px solid var(--line);
+               border-radius:10px; padding:2px 9px; font-size:.76rem; margin:2px 4px 0 0; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>{{ name }} <span class="meta">({{ ticker }} · {{ market_label }})</span></h1>
-  <div class="meta">발행: {{ issued_at }}</div>
-  <div class="badges">
-    {% if grade %}<span class="badge strategy">종합 등급 {{ grade }}</span>{% endif %}
-    {% if wyckoff_badge %}<span class="badge">{{ wyckoff_badge }}</span>{% endif %}
-    {% for b in strategy_badges %}<span class="badge strategy">{{ b }}</span>{% endfor %}
-    <span class="badge">강도 {{ strength }}</span>
-    <span class="badge">신뢰도 {{ confidence_label }}</span>
-    {% for t in tags %}<span class="badge warn">{{ t }}</span>{% endfor %}
-  </div>
-  {% if grade_basis %}<div class="meta">등급 산출: {{ grade_basis }}</div>{% endif %}
 
-  <h2>📈 차트 (6개월 · 터치 확대/이동)</h2>
-  <div class="chart">{{ chart_html | safe }}</div>
-
-  <h2>🔍 지표 해설</h2>
-  <ul>{% for line in indicator_lines %}<li>{{ line }}</li>{% endfor %}</ul>
-
-  {% if checklist %}
-  <h2>✅ 전략별 조건 체크리스트</h2>
-  <ul>{% for line in checklist %}<li>{{ line }}</li>{% endfor %}</ul>
-  {% endif %}
-
-  <h2>🏢 펀더멘털</h2>
-  <div class="grid">
-    {% for k, v in fundamentals %}
-    <div class="card"><div class="k">{{ k }}</div><div class="v">{{ v }}</div></div>
-    {% endfor %}
+  <div class="hero">
+    <div class="title">
+      <span class="gradechip">{{ grade or "—" }}</span>
+      <h1>{{ name }} <span style="color:var(--dim);font-weight:400">{{ ticker }} · {{ market_label }}</span></h1>
+    </div>
+    <div class="meta">{{ issued_at }}{% if grade_basis %} · 등급 산출: {{ grade_basis }}{% endif %}</div>
+    <div>
+      {% for t in tags %}<span class="badgechip">{{ t }}</span>{% endfor %}
+    </div>
+    <div class="grid4">
+      <div class="cell"><div class="k">매수 범위 (상단 초과 = 추격 금지)</div><div class="v">{{ plan.entry }}</div></div>
+      <div class="cell"><div class="k">손절 ({{ plan.stop_mode }})</div><div class="v">{{ plan.stop }}</div></div>
+      <div class="cell"><div class="k">Wyckoff</div><div class="v">{{ wyckoff_badge or "⚪ 해당 없음" }}</div></div>
+      <div class="cell"><div class="k">시장 국면</div><div class="v" style="font-size:.8rem">{{ regime_label }}</div></div>
+    </div>
   </div>
 
-  <h2>💡 매수 근거</h2>
-  <p>{{ reason }}</p>
-  {% if strategy_ranking %}
-  <table>
-    <tr><th>전략</th><th>과거 거래</th><th>승률</th><th>PF</th><th>평가</th></tr>
-    {% for r in strategy_ranking %}
-    <tr><td>{{ r.name }}</td><td>{{ r.n }}</td><td>{{ r.wr }}</td><td>{{ r.pf }}</td><td>{{ r.label }}</td></tr>
-    {% endfor %}
-  </table>
-  {% endif %}
-
-  <h2>🎯 매매 계획</h2>
-  <div class="grid">
-    <div class="card"><div class="k">매수 범위 (상단 초과 = 추격 금지)</div><div class="v">{{ plan.entry }}</div></div>
-    <div class="card"><div class="k">손절 ({{ plan.stop_mode }})</div><div class="v">{{ plan.stop }}</div></div>
-    <div class="card"><div class="k">목표</div><div class="v">{{ plan.target }}</div></div>
-    {% if plan.kelly %}
-    <div class="card"><div class="k">제안 비중 (하프 켈리 · 참고용)</div><div class="v">{{ plan.kelly }}</div></div>
+  <div class="chartbox">
+    {% if chart_payload %}
+    <div class="chartbar">
+      <button id="tf-d" class="on">일봉</button><button id="tf-w">주봉</button>
+      <span style="flex:1"></span>
+      <button data-r="21">1M</button><button data-r="63">3M</button>
+      <button data-r="126" class="on" id="r-def">6M</button>
+      <button data-r="252">1Y</button><button data-r="0">전체</button>
+    </div>
+    <div id="lwchart"></div>
+    {% else %}
+    {{ chart_html | safe }}
     {% endif %}
   </div>
-  {% if plan.correlation_warning %}<div class="warn-box">{{ plan.correlation_warning }}</div>{% endif %}
 
-  <h2>📊 백테스트 신뢰도</h2>
-  {% if confidence.low_sample %}<div class="warn-box">⚠️ {{ confidence.label }} — 아래 수치는 통계적으로 신뢰하기 어렵습니다.</div>{% endif %}
-  <table>
-    <tr><th>표본수</th><th>승률</th><th>PF</th><th>MDD</th><th>과적합 위험</th></tr>
-    <tr><td>{{ confidence.n }}</td><td>{{ confidence.wr }}</td><td>{{ confidence.pf }}</td>
-        <td>{{ confidence.mdd }}</td><td>{{ confidence.risk_label }}</td></tr>
-  </table>
-  <p class="meta">{{ validation_note }}</p>
-
-  {% if contrarian %}
-  <h2>⚠️ 주의 요인 (역행 지표 {{ contrarian | length }}개)</h2>
-  <ul>{% for line in contrarian %}<li>{{ line }}</li>{% endfor %}</ul>
+  {% if vpa %}
+  <section>
+    <h2>🧭 Wyckoff VPA 진단</h2>
+    {% for s in vpa.stages %}
+    <div class="stage">
+      <div class="mark">{{ "✅" if s.ok else "❌" }}</div>
+      <div><div class="lbl">{{ s.label }}</div><div class="val">{{ s.value }}</div></div>
+    </div>
+    {% endfor %}
+    <div class="ctx">주봉 컨텍스트: {{ vpa.weekly_context }}</div>
+  </section>
   {% endif %}
 
-  <h2>🌐 시장 국면</h2>
-  <p>{{ regime_label }}</p>
-  {% if downgraded %}<div class="warn-box">⚠️ 시장 국면에 따라 시그널 강도가 하향 조정되었습니다.</div>{% endif %}
+  <section>
+    <h2>매수 근거</h2>
+    <p style="margin:4px 0">{{ reason }}</p>
+  </section>
+
+  {% if contrarian %}
+  <section>
+    <h2>⚠️ 주의 요인 (역행 지표 {{ contrarian | length }}개)</h2>
+    <ul>{% for line in contrarian %}<li>{{ line }}</li>{% endfor %}</ul>
+  </section>
+  {% endif %}
+
+  <section>
+    <h2>지표 해설</h2>
+    <ul>
+      {% for line in indicator_lines %}<li>{{ line }}</li>{% endfor %}
+      {% for line in weekly_lines %}<li><b>주봉</b> · {{ line }}</li>{% endfor %}
+    </ul>
+  </section>
+
+  {% if checklist %}
+  <section>
+    <h2>전략별 조건 체크리스트</h2>
+    <ul>{% for line in checklist %}<li>{{ line }}</li>{% endfor %}</ul>
+  </section>
+  {% endif %}
+
+  <section>
+    <h2>매매 계획</h2>
+    <div class="grid4">
+      <div class="cell"><div class="k">매수 범위</div><div class="v">{{ plan.entry }}</div></div>
+      <div class="cell"><div class="k">손절 ({{ plan.stop_mode }})</div><div class="v">{{ plan.stop }}</div></div>
+      <div class="cell"><div class="k">목표</div><div class="v">{{ plan.target }}</div></div>
+      {% if plan.kelly %}<div class="cell"><div class="k">제안 비중 (하프 켈리 · 참고용)</div><div class="v">{{ plan.kelly }}</div></div>{% endif %}
+    </div>
+    {% if plan.correlation_warning %}<div class="warnbox">{{ plan.correlation_warning }}</div>{% endif %}
+  </section>
+
+  <details>
+    <summary>백테스트 신뢰도 {{ "· ⚠️ " + confidence.label if confidence.low_sample else "" }}</summary>
+    <div class="inner">
+      {% if confidence.low_sample %}<div class="warnbox">⚠️ {{ confidence.label }} — 아래 수치는 통계적으로 신뢰하기 어렵습니다.</div>{% endif %}
+      <table>
+        <tr><th>표본수</th><th>승률</th><th>PF</th><th>MDD</th><th>과적합 위험</th></tr>
+        <tr><td>{{ confidence.n }}</td><td>{{ confidence.wr }}</td><td>{{ confidence.pf }}</td>
+            <td>{{ confidence.mdd }}</td><td>{{ confidence.risk_label }}</td></tr>
+      </table>
+      {% if strategy_ranking %}
+      <table style="margin-top:10px">
+        <tr><th>전략</th><th>과거 거래</th><th>승률</th><th>PF</th><th>평가</th></tr>
+        {% for r in strategy_ranking %}
+        <tr><td>{{ r.name }}</td><td>{{ r.n }}</td><td>{{ r.wr }}</td><td>{{ r.pf }}</td><td>{{ r.label }}</td></tr>
+        {% endfor %}
+      </table>
+      {% endif %}
+      <p style="color:var(--dim);font-size:.78rem">{{ validation_note }}</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>펀더멘털</summary>
+    <div class="inner">
+      <div class="grid4">
+        {% for k, v in fundamentals %}
+        <div class="cell"><div class="k">{{ k }}</div><div class="v">{{ v }}</div></div>
+        {% endfor %}
+      </div>
+    </div>
+  </details>
 
   <div class="disclaimer">
-    ⚠️ 본 리포트의 백테스트 확률은 과거 데이터 기준이며, 실전 성과는 일반적으로 이보다 낮습니다.
+    본 리포트의 백테스트 확률은 과거 데이터 기준이며, 실전 성과는 일반적으로 이보다 낮습니다.
     백테스트는 현재 상장 종목 기준으로 상장폐지 종목이 제외된 생존 편향(낙관적 왜곡)을 포함합니다.
     본 자료는 투자 자문이 아니며, 모든 투자 판단과 책임은 투자자 본인에게 있습니다.
-    시스템은 추천할 뿐, 결정은 사람이 합니다.
+    시스템은 추천할 뿐, 결정은 사람이 합니다.<br>
+    Charts powered by <a href="https://www.tradingview.com/lightweight-charts/" style="color:var(--dim)">TradingView lightweight-charts</a> (Apache-2.0).
   </div>
 </div>
+
+{% if chart_payload %}
+<script>
+(function () {
+  const DATA = {{ chart_payload | safe }};
+  const LWC = window.LightweightCharts;
+  if (!LWC) { document.getElementById('lwchart').innerHTML = '차트 로드 실패 — 네트워크 확인'; return; }
+  const el = document.getElementById('lwchart');
+  const chart = LWC.createChart(el, {
+    layout: { background: { color: '#141922' }, textColor: '#8b96a5',
+              panes: { separatorColor: '#222a36' } },
+    grid: { vertLines: { color: '#1a2029' }, horzLines: { color: '#1a2029' } },
+    timeScale: { borderColor: '#222a36' },
+    rightPriceScale: { borderColor: '#222a36' },
+    handleScale: { pinch: true, mouseWheel: true }, handleScroll: true,
+    autoSize: true,
+  });
+  const candles = chart.addSeries(LWC.CandlestickSeries, {
+    upColor: '#26a69a', downColor: '#ef5350',
+    wickUpColor: '#26a69a', wickDownColor: '#ef5350', borderVisible: false,
+  }, 0);
+  const smaColors = { SMA20: '#4fc3f7', SMA60: '#ba68c8', SMA200: '#ffd54f' };
+  const smaSeries = {};
+  Object.keys(smaColors).forEach(k => {
+    smaSeries[k] = chart.addSeries(LWC.LineSeries,
+      { color: smaColors[k], lineWidth: 1, priceLineVisible: false, lastValueVisible: false }, 0);
+  });
+  const bbU = chart.addSeries(LWC.LineSeries, { color: 'rgba(120,144,156,.5)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false }, 0);
+  const bbL = chart.addSeries(LWC.LineSeries, { color: 'rgba(120,144,156,.5)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false }, 0);
+  const vol = chart.addSeries(LWC.HistogramSeries, { priceFormat: { type: 'volume' }, priceLineVisible: false }, 1);
+  const rsi = chart.addSeries(LWC.LineSeries, { color: '#4fc3f7', lineWidth: 1, priceLineVisible: false }, 2);
+  const macdL = chart.addSeries(LWC.LineSeries, { color: '#4fc3f7', lineWidth: 1, priceLineVisible: false }, 3);
+  const macdS = chart.addSeries(LWC.LineSeries, { color: '#ffd54f', lineWidth: 1, priceLineVisible: false }, 3);
+  const macdH = chart.addSeries(LWC.HistogramSeries, { priceLineVisible: false }, 3);
+  const weis = chart.addSeries(LWC.HistogramSeries, { priceFormat: { type: 'volume' }, priceLineVisible: false }, 4);
+  try {
+    const panes = chart.panes();
+    if (panes[0] && panes[0].setStretchFactor) {
+      [3, 1, 1, 1, 1].forEach((f, i) => panes[i] && panes[i].setStretchFactor(f));
+    }
+  } catch (e) { /* pane sizing is cosmetic */ }
+
+  DATA.priceLines.forEach(pl => candles.createPriceLine({
+    price: pl.price, color: pl.color, lineWidth: 1, title: pl.title,
+    lineStyle: pl.dashed ? LWC.LineStyle.Dashed : LWC.LineStyle.Solid,
+  }));
+  try {
+    if (LWC.createSeriesMarkers) LWC.createSeriesMarkers(candles, DATA.markers);
+    else if (candles.setMarkers) candles.setMarkers(DATA.markers);
+  } catch (e) { /* markers are progressive enhancement */ }
+
+  let tf = 'daily';
+  function apply(tfKey) {
+    tf = tfKey;
+    const d = DATA[tfKey];
+    candles.setData(d.candles);
+    vol.setData(d.volume);
+    rsi.setData(d.rsi);
+    macdL.setData(d.macd); macdS.setData(d.macd_signal); macdH.setData(d.macd_hist);
+    weis.setData(d.weis);
+    Object.keys(smaSeries).forEach(k => smaSeries[k].setData(d.smas[k] || []));
+    bbU.setData(d.bb_upper || []); bbL.setData(d.bb_lower || []);
+    document.getElementById('tf-d').classList.toggle('on', tfKey === 'daily');
+    document.getElementById('tf-w').classList.toggle('on', tfKey === 'weekly');
+    setRange(currentRange);
+  }
+  let currentRange = 126;
+  function setRange(nDaily) {
+    currentRange = nDaily;
+    const d = DATA[tf].candles;
+    if (!d.length) return;
+    const n = nDaily === 0 ? d.length : Math.min(d.length, tf === 'weekly' ? Math.ceil(nDaily / 5) : nDaily);
+    chart.timeScale().setVisibleLogicalRange({ from: d.length - n, to: d.length + 2 });
+    document.querySelectorAll('.chartbar [data-r]').forEach(b =>
+      b.classList.toggle('on', Number(b.dataset.r) === nDaily));
+  }
+  document.getElementById('tf-d').onclick = () => apply('daily');
+  document.getElementById('tf-w').onclick = () => apply('weekly');
+  document.querySelectorAll('.chartbar [data-r]').forEach(b =>
+    b.onclick = () => setRange(Number(b.dataset.r)));
+  el.addEventListener('dblclick', () => setRange(0));
+  apply('daily');
+})();
+</script>
+{% endif %}
 </body>
 </html>

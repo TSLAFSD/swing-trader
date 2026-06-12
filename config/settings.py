@@ -102,6 +102,10 @@ CB_MEAN_FWD10_MIN = -0.02  # suspend when mean +10d forward return < -2%
 REPORTS_BRANCH = "gh-pages"
 PAGES_BASE_URL = "https://tslafsd.github.io/swing-trader"
 REPORT_CHART_MONTHS = 6
+# U5 (owner-approved spec revision): TradingView lightweight-charts v5.
+# "plotly" rolls back to the retained fallback renderer.
+CHART_BACKEND = "lightweight"
+LW_CHARTS_CDN = "https://unpkg.com/lightweight-charts@5/dist/lightweight-charts.standalone.production.js"
 
 # --- Gap Guard (us-premarket, spec §11.1) --------------------------------
 GAP_ALERT_PCT = 3.0
