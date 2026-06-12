@@ -10,7 +10,6 @@ import pandas as pd
 import pytest
 
 from src.analysis.base_strategy import load_strategy_config
-from src.analysis.confluence import apply_confluence
 from src.analysis.strategy_breakout import BreakoutStrategy
 from src.analysis.strategy_connors_rsi2 import ConnorsRsi2Strategy
 from src.analysis.strategy_pullback import PullbackStrategy
@@ -179,22 +178,4 @@ class TestWyckoffSpring:
         assert WyckoffSpringStrategy(CFG).evaluate(df, "TEST", "테스트", "us") is None
 
 
-class TestConfluence:
-    def two_signals(self) -> list:
-        df_p = TestPullback().fire_frame()
-        df_z = TestZScoreMeanRev().fire_frame()
-        sig_p = PullbackStrategy(CFG).evaluate(df_p, "TEST", "테스트", "us")
-        sig_z = ZScoreMeanRevStrategy(CFG).evaluate(df_z, "TEST", "테스트", "us")
-        assert sig_p is not None and sig_z is not None
-        return [sig_p, sig_z]
-
-    def test_merges_when_enabled(self) -> None:
-        cfg = {**CFG, "confluence": {"enabled": True, "min_strategies": 2, "bonus_multiplier": 1.2}}
-        merged = apply_confluence(self.two_signals(), cfg)
-        assert len(merged) == 1
-        assert merged[0].strategy_id == "confluence"
-        assert merged[0].strength <= 100.0
-
-    def test_passthrough_when_disabled(self) -> None:
-        cfg = {**CFG, "confluence": {"enabled": False, "min_strategies": 2, "bonus_multiplier": 1.2}}
-        assert len(apply_confluence(self.two_signals(), cfg)) == 2
+# (Confluence merge-layer tests removed in U1/A-4 along with the module.)

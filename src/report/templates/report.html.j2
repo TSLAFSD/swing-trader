@@ -79,7 +79,9 @@
     <div class="card"><div class="k">제안 매수가</div><div class="v">{{ plan.entry }}</div></div>
     <div class="card"><div class="k">손절 ({{ plan.stop_mode }})</div><div class="v">{{ plan.stop }}</div></div>
     <div class="card"><div class="k">목표</div><div class="v">{{ plan.target }}</div></div>
+    {% if plan.kelly %}
     <div class="card"><div class="k">제안 비중 (하프 켈리 · 참고용)</div><div class="v">{{ plan.kelly }}</div></div>
+    {% endif %}
   </div>
   {% if plan.correlation_warning %}<div class="warn-box">{{ plan.correlation_warning }}</div>{% endif %}
 

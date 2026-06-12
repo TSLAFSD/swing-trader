@@ -61,7 +61,13 @@ GitHub Actions (cron) + GitHub Pages (reports) + Telegram (alerts) + Cloudflare 
 - `enabled: true` in `config/strategies.yaml` ONLY after passing all Phase-4 validation
   gates (IS/OoS, walk-forward, Monte Carlo >= 1,000, sensitivity +-20%, regime-sliced,
   benchmark, strict pass criteria). Borderline = disabled, stated honestly.
-- **Hard cap: max 7 strategies enabled simultaneously** (confluence counts toward the cap).
+- **Hard cap: max 7 strategies enabled simultaneously.** (The confluence merge
+  layer was removed in upgrade U1/A-4; the cap itself remains.)
+- **Send cutoffs (U1/A-2)** are separate from ranking: settings MIN_PROFIT_FACTOR_SEND /
+  MIN_SAMPLE_SEND / MIN_STRENGTH_SEND / MAX_STOP_LOSS_PCT gate the Telegram message
+  only; reports are still generated and the health check shows the excluded count.
+- **52-week gauge (U1/A-1)** is ALWAYS computed from our own adjusted series;
+  external 52w fields render only within FUND_52W_DEVIATION_MAX_PCT of own data.
 
 ## Cron <-> KST map (GitHub Actions, UTC)
 

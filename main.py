@@ -110,15 +110,17 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
     strategies = {s.strategy_id: s for s in get_strategies(enabled_only=False)}
     urls: dict[str, str] = {}
     conf_labels: dict[str, str] = {}
+    confs: dict[str, object] = {}  # ticker -> ConfidenceReport (send filter)
     for sig in result.signals:
         df_ind = result.signal_frames.get(sig.ticker)
         if df_ind is None:
             continue
         strategy = strategies.get(sig.strategy_id)
-        if strategy is None:  # confluence merge
-            conf_labels[sig.ticker] = "콘플루언스"
+        if strategy is None:
+            logger.warning("no strategy instance for %s — skipping", sig.strategy_id)
             continue
         conf = ticker_confidence(df_ind, strategy, sig.ticker, market)
+        confs[sig.ticker] = conf
         conf_labels[sig.ticker] = f"{conf.score:.2f}"
         # Final rank = strength x confidence (re-rank below).
         sig.strength = round(sig.strength * max(conf.score, 0.1), 1)
@@ -135,20 +137,26 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
         else:  # KOSPI -> .KS, KOSDAQ -> .KQ
             suffix = ".KQ" if kr_markets.get(sig.ticker) == "KOSDAQ" else ".KS"
             yf_symbol = f"{sig.ticker}{suffix}"
-        fund = fetch_fundamentals(sig.ticker, yf_symbol=yf_symbol)
+        fund = fetch_fundamentals(sig.ticker, yf_symbol=yf_symbol, market=market)
         path = build_report(
             sig, df_ind, conf, fund,
             regime_label=result.regime.label_kr if result.regime else "—",
             downgraded=bool(result.regime and result.regime.weak),
-            kelly_hint=kelly_hint_kr(conf),
+            kelly_hint=kelly_hint_kr(conf) if conf.n_trades >= settings.MIN_SAMPLE_SEND else None,
             correlation_warning=corr_warn,
         )
         urls[sig.ticker] = report_url(path)
     result.signals.sort(key=lambda s: s.strength, reverse=True)
 
-    tracker.record_signals(result.signals)
+    tracker.record_signals(result.signals)  # ALL ranked signals (weekly tracking)
     n_published = publish_reports() if publish else 0
     logger.info("reports published: %d", n_published)
+
+    # Send-stage cutoffs (A-2): reports above were already generated for all.
+    from src.notify.send_filter import filter_for_send
+
+    sendable, send_excluded = filter_for_send(result.signals, confs)
+    result.signals = sendable
 
     # Position monitoring (sell alerts + holdings one-liners; Telegram ONLY).
     from src.analysis.indicators import compute_indicators
@@ -175,7 +183,9 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
 
     _publish(publish)
 
-    text = messages.scan_message(result, urls, conf_labels, preliminary, kr_third)
+    text = messages.scan_message(
+        result, urls, conf_labels, preliminary, kr_third, filtered_count=len(send_excluded)
+    )
     telegram.send_message(text)
     for msg in sell_msgs:
         telegram.send_message(msg)

@@ -57,6 +57,7 @@ def scan_message(
     confidence_labels: dict[str, str] | None = None,
     preliminary: bool = False,
     kr_third_source_used: bool = False,
+    filtered_count: int = 0,
 ) -> str:
     """Build the per-scan message: health line + top-5 cards + collapsed rest."""
     confidence_labels = confidence_labels or {}
@@ -64,7 +65,8 @@ def scan_message(
     header = f"{flag} {MARKET_KR[result.market]} 스캔 완료 · {result.scan_date}"
     if preliminary:
         header += "\n⚠️ 예비(미확정) — 종가 확정 전 참고용입니다"
-    body = [header, f"✅ {result.total_scanned:,}종목 스캔 · 시그널 {len(result.signals)}개"]
+    filtered_note = f" (필터 제외 {filtered_count}건)" if filtered_count else ""
+    body = [header, f"✅ {result.total_scanned:,}종목 스캔 · 시그널 {len(result.signals)}개{filtered_note}"]
     if result.regime:
         body.append(f"🌐 {result.regime.label_kr}")
     if result.anomalies:

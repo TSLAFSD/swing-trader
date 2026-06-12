@@ -22,7 +22,6 @@ import pandas as pd
 from config import settings
 from src.analysis import indicators as ind
 from src.analysis.base_strategy import Signal
-from src.analysis.confluence import apply_confluence
 from src.analysis.registry import get_strategies
 from src.analysis.regime import RegimeState, get_regime
 
@@ -159,7 +158,7 @@ def scan_market(
         if fired:
             signal_frames[ticker] = df
 
-    signals = apply_confluence(raw_signals, config)
+    signals = raw_signals
 
     # Layer 1: cross-sectional RS momentum filter.
     rs_pct = ind.rs_momentum_percentile(closes)

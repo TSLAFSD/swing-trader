@@ -39,7 +39,20 @@ def _fmt_price(value: float | None, market: str) -> str:
     return f"{value:,.0f}원" if market == "kr" else f"${value:,.2f}"
 
 
-def _fundamentals_rows(fund: Fundamentals, market: str, last_close: float) -> list[tuple[str, str]]:
+def _own_52w(df_ind: pd.DataFrame) -> tuple[float, float]:
+    """52-week high/low from OUR adjusted series (last 252 trading days).
+
+    A-1 defense: yfinance .info served stale quotes for KOSDAQ tickers
+    (131290 case: 52w high 90,500 vs actual 282,500) — the position gauge is
+    therefore ALWAYS computed from our own data, never external fields.
+    """
+    recent = df_ind.tail(252)
+    return float(recent["high"].max()), float(recent["low"].min())
+
+
+def _fundamentals_rows(
+    fund: Fundamentals, market: str, last_close: float, df_ind: pd.DataFrame
+) -> list[tuple[str, str]]:
     def num(v: float | None, fmt: str = "{:,.1f}") -> str:
         return "정보 없음" if v is None else fmt.format(v)
 
@@ -50,19 +63,33 @@ def _fundamentals_rows(fund: Fundamentals, market: str, last_close: float) -> li
         cap_s = f"{cap / 1e12:,.1f}조원"
     else:
         cap_s = f"${cap / 1e9:,.1f}B"
-    if fund.week52_high and fund.week52_low and fund.week52_high > fund.week52_low:
-        pos = (last_close - fund.week52_low) / (fund.week52_high - fund.week52_low) * 100
-        wk52 = f"{pos:.0f}% 위치"
-    else:
-        wk52 = "정보 없음"
-    return [
+
+    own_high, own_low = _own_52w(df_ind)
+    pos = (last_close - own_low) / (own_high - own_low) * 100 if own_high > own_low else float("nan")
+    rows = [
         ("PER", num(fund.per)),
         ("PBR", num(fund.pbr)),
         ("시가총액", cap_s),
         ("배당수익률", "정보 없음" if fund.dividend_yield is None else f"{fund.dividend_yield:.2f}%"),
-        ("52주 고저 대비", wk52),
-        ("52주 최고/최저", f"{_fmt_price(fund.week52_high, market)} / {_fmt_price(fund.week52_low, market)}"),
     ]
+    if pos == pos:
+        rows.append(("52주 고저 대비 (자체 시세)", f"{pos:.0f}% 위치"))
+    # External 52w shown ONLY when consistent with our own series (±5%).
+    tol = settings.FUND_52W_DEVIATION_MAX_PCT / 100.0
+    if (
+        fund.week52_high and fund.week52_low
+        and abs(fund.week52_high / own_high - 1) <= tol
+        and abs(fund.week52_low / own_low - 1) <= tol
+    ):
+        rows.append(
+            ("52주 최고/최저", f"{_fmt_price(fund.week52_high, market)} / {_fmt_price(fund.week52_low, market)}")
+        )
+    elif fund.week52_high or fund.week52_low:
+        logger.warning(
+            "fundamentals 52w deviates >%s%% from own data (%s vs own %.0f/%.0f) — hidden",
+            settings.FUND_52W_DEVIATION_MAX_PCT, fund.ticker, own_high, own_low,
+        )
+    return rows
 
 
 def _overfit_label(conf: ConfidenceReport) -> str:
@@ -79,7 +106,7 @@ def build_report(
     regime_label: str,
     downgraded: bool,
     strategy_ranking: list[dict] | None = None,
-    kelly_hint: str = "표본 부족 — 제안 불가",
+    kelly_hint: str | None = None,  # None = row not rendered (A-5: low sample)
     correlation_warning: str | None = None,
     checklist: list[str] | None = None,
 ) -> Path:
@@ -111,7 +138,7 @@ def build_report(
         chart_html=chart,
         indicator_lines=summarize_kr(last, market),
         checklist=checklist or [],
-        fundamentals=_fundamentals_rows(fundamentals, market, float(last["close"])),
+        fundamentals=_fundamentals_rows(fundamentals, market, float(last["close"]), df_ind),
         reason=signal.reason,
         strategy_ranking=strategy_ranking or [],
         plan={

@@ -41,6 +41,14 @@ HISTORY_YEARS = 3  # default depth for initial fetch / backtests
 # --- Data quality ------------------------------------------------------
 ANOMALY_DAILY_MOVE_PCT = 30.0  # 1-day move beyond +-30% -> exclude from signals, flag
 
+# --- Send cutoffs (U1/A-2: applied at the SEND stage, separate from rank) --
+MIN_PROFIT_FACTOR_SEND = 1.0  # per-ticker confidence PF below this -> not sent
+MIN_SAMPLE_SEND = 5  # confidence trades below this -> not sent; also hides Kelly
+MIN_STRENGTH_SEND = 20.0  # final (confidence-adjusted) strength floor
+MAX_STOP_LOSS_PCT = 15.0  # suggested stop wider than this from entry...
+STOP_TOO_WIDE_MODE = "drop"  # ..."drop" = don't send | "tag" = send with warning
+FUND_52W_DEVIATION_MAX_PCT = 5.0  # external 52w high/low vs own data gate (A-1)
+
 # --- Signal-quality layers ----------------------------------------------
 RS_PERCENTILE_FLOOR = 30.0  # BUY candidates below this momentum percentile...
 RS_FLOOR_ACTION = "drop"  # ..."drop" or "downgrade" (x0.7 strength)

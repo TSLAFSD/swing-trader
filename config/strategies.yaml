@@ -5,10 +5,8 @@
 # Hard cap: max 7 strategies enabled simultaneously (confluence counts).
 # All strategies start disabled until Phase 4 validation runs.
 
-confluence:
-  enabled: false          # meta-strategy merge layer (counts toward the 7-cap)
-  min_strategies: 2       # >= N base strategies firing same ticker same day
-  bonus_multiplier: 1.2   # merged strength = min(100, sum(strengths) * bonus)
+# (Confluence merge layer removed in upgrade U1/A-4 — the "max 7 enabled" cap
+#  itself remains in force.)
 
 strategies:
   pullback:               # ① 눌림목

@@ -27,12 +27,13 @@ class Fundamentals:
         return asdict(self)
 
 
-def fetch_fundamentals(ticker: str, yf_symbol: str | None = None) -> Fundamentals:
+def fetch_fundamentals(ticker: str, yf_symbol: str | None = None, market: str = "us") -> Fundamentals:
     """Fetch a fundamentals snapshot; missing data yields None fields.
 
     Args:
         ticker: Canonical ticker (store key).
         yf_symbol: yfinance symbol if different (e.g. "005930.KS").
+        market: "us" | "kr" — kr enables the pykrx best-effort supplement.
 
     Returns:
         Fundamentals with None for anything unavailable.
@@ -53,7 +54,7 @@ def fetch_fundamentals(ticker: str, yf_symbol: str | None = None) -> Fundamental
                 return float(value)
         return None
 
-    return Fundamentals(
+    fund = Fundamentals(
         ticker=ticker,
         per=grab("trailingPE"),
         pbr=grab("priceToBook"),
@@ -62,3 +63,26 @@ def fetch_fundamentals(ticker: str, yf_symbol: str | None = None) -> Fundamental
         week52_high=grab("fiftyTwoWeekHigh"),
         week52_low=grab("fiftyTwoWeekLow"),
     )
+    # KR supplement (A-1): yfinance valuation fields are usually empty for
+    # KRX tickers — fill PER/PBR/배당 from pykrx, best-effort, never blocks.
+    if market == "kr" and (fund.per is None or fund.pbr is None or fund.dividend_yield is None):
+        try:
+            from datetime import date, timedelta
+
+            from pykrx import stock
+
+            end = date.today()
+            df = stock.get_market_fundamental(
+                (end - timedelta(days=10)).strftime("%Y%m%d"), end.strftime("%Y%m%d"), ticker
+            )
+            if df is not None and not df.empty:
+                row = df.iloc[-1]
+                if fund.per is None and row.get("PER", 0) > 0:
+                    fund.per = float(row["PER"])
+                if fund.pbr is None and row.get("PBR", 0) > 0:
+                    fund.pbr = float(row["PBR"])
+                if fund.dividend_yield is None and row.get("DIV", 0) > 0:
+                    fund.dividend_yield = float(row["DIV"])
+        except Exception:
+            logger.debug("fundamentals: pykrx supplement failed for %s (best-effort)", ticker, exc_info=True)
+    return fund
