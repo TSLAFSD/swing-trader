@@ -73,14 +73,27 @@ strategies:
       atr_k: 3.0
       time_stop_days: 15
 
-  wyckoff_spring:         # ⑥ 와이코프 스프링 (mechanizable subset only)
+  wyckoff_spring:         # ⑥ 와이코프 스프링 — U2/U3: VPA 3-stage engine
     enabled: false
     exit_mode: atr_trailing
     min_bars: 150
     params:
-      range_days: 60
-      range_max_width_pct: 15.0  # range (high-low)/low < this
-      spring_lookback: 3         # low broke range low within last N days
-      vol_mult: 1.2
       atr_k: 3.0
       time_stop_days: 15
+      # legacy range-spring params — consumed by the pre-U3 strategy logic,
+      # removed when U3 swaps in the VPA 3-stage entry
+      range_days: 60
+      range_max_width_pct: 15.0
+      spring_lookback: 3
+      vol_mult: 1.2
+      # --- Wyckoff VPA engine (src/analysis/wyckoff_vpa.py, U2) ---
+      vpa:
+        lookback: 60          # bars scanned for liquidity pivots
+        pivot_strength: 3     # right-side candles required to CONFIRM a pivot
+        equal_low_pct: 0.5    # % band clustering equal lows/highs
+        vol_ma_days: 20
+        vol_mult: 2.0         # climax volume multiple vs VolMA
+        wick_body_ratio: 2.0  # rejection wick >= ratio x body
+        zigzag_pct: 3.0       # Weis wave reversal threshold (%)
+        retest_window: 10     # bars after climax for the retest wave to begin
+        exhaust_ratio: 0.5    # retest volume <= ratio x climax-wave volume
