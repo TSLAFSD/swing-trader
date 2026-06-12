@@ -1,15 +1,10 @@
-# Owner's open positions — single source of truth (spec §8).
-# Managed via Telegram /add /remove (Phase 6) or by editing directly.
-# Reports NEVER echo this file; position P&L appears only in private Telegram.
-#
-# Schema per entry:
-#   - ticker: "AAPL"            # KR: 6-digit code as string, e.g. "005930"
-#     market: us                # us | kr
-#     entry_date: 2026-06-12
-#     entry_price: 230.50
-#     quantity: 10
-#     stop_loss: 216.70         # absolute price
-#     take_profit: 265.00       # absolute price or null (trailing/condition exit)
-#     exit_mode: fixed          # fixed | atr_trailing | roi_table
-
-positions: []
+# Owner's open positions — managed via Telegram /add /remove or by hand.
+positions:
+- ticker: AAPL
+  market: us
+  entry_date: '2026-06-12'
+  entry_price: 291.58
+  quantity: 1.0
+  stop_loss: 277.001
+  take_profit: 335.317
+  exit_mode: fixed
