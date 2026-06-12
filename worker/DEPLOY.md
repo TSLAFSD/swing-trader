@@ -92,5 +92,5 @@ curl "https://api.telegram.org/bot<봇토큰>/setWebhook?url=<Worker주소>"
 |---|---|
 | /help에 무반응 | 5단계 웹훅 URL 오타 — setWebhook 다시 실행 |
 | "GitHub 호출 실패" 메시지 | GITHUB_PAT 재확인 — 1단계 권한(Contents R&W)과 저장소 선택 확인 |
-| ⏳ 접수 후 결과가 안 옴 | GitHub → Actions 탭에서 `commands` 워크플로 로그 확인 |
+| ⏳ 접수 후 결과가 안 옴 | 스캔 실행 중 명령을 연달아 보내면 마지막 것만 실행됨(앞의 것은 취소) — 같은 명령을 다시 보내거나 GitHub → Actions 탭에서 `commands` 로그 확인 |
 | 다른 사람이 봇에게 명령 | 자동 무시됩니다 (ALLOWED_CHAT_ID만 허용) |
