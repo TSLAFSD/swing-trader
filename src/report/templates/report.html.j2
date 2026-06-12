@@ -49,6 +49,14 @@
   .chartbar button.on { border-color:var(--accent); color:var(--accent); font-weight:700; }
   #lwchart { width:100%; height:640px; }
   .disclaimer { color:var(--dim); font-size:.72rem; margin-top:20px; line-height:1.55; }
+  .copybar { position:fixed; left:0; right:0; bottom:0; z-index:50;
+             padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+             background:linear-gradient(transparent, rgba(11,14,19,.92) 30%); }
+  .copybar button { width:100%; max-width:732px; margin:0 auto; display:block;
+                    background:var(--accent); color:#06121f; border:none; border-radius:14px;
+                    padding:15px 16px; font-size:1rem; font-weight:800;
+                    box-shadow:0 6px 18px rgba(0,0,0,.45); }
+  .copybar button.done { background:var(--up); color:#03110d; }
   .badgechip { display:inline-block; background:#0f141c; border:1px solid var(--line);
                border-radius:10px; padding:2px 9px; font-size:.76rem; margin:2px 4px 0 0; }
 </style>
@@ -179,6 +187,40 @@
     Charts powered by <a href="https://www.tradingview.com/lightweight-charts/" style="color:var(--dim)">TradingView lightweight-charts</a> (Apache-2.0).
   </div>
 </div>
+
+{% if ai_prompt %}
+<div class="copybar">
+  <button id="copy-ai">📋 AI 분석 요청 복사</button>
+</div>
+<script>
+(function () {
+  const PROMPT = {{ ai_prompt | safe }};
+  const btn = document.getElementById('copy-ai');
+  function done(ok) {
+    btn.textContent = ok ? '복사됨 ✓ — AI 채팅에 붙여넣으세요' : '복사 실패 — 길게 눌러 수동 복사';
+    btn.classList.toggle('done', ok);
+    setTimeout(() => { btn.textContent = '📋 AI 분석 요청 복사'; btn.classList.remove('done'); }, 2500);
+  }
+  btn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(PROMPT);
+      done(true);
+    } catch (e) {
+      // Fallback: hidden textarea + execCommand (older Safari / http contexts)
+      const ta = document.createElement('textarea');
+      ta.value = PROMPT;
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e2) { ok = false; }
+      document.body.removeChild(ta);
+      done(ok);
+    }
+  });
+})();
+</script>
+{% endif %}
 
 {% if chart_payload %}
 <script>

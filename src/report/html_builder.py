@@ -140,6 +140,15 @@ def build_report(
     weekly = _weekly_frame(daily)
     diagnosis = vpa_diagnosis(daily, weekly)
     weekly_lines = weekly_lines_kr(weekly)
+
+    from src.analysis.base_strategy import load_strategy_config
+    from src.report.ai_bridge import build_ai_prompt
+
+    vpa_cfg = load_strategy_config()["strategies"]["wyckoff_spring"]["params"]["vpa"]
+    ai_prompt = build_ai_prompt(
+        signal, df_ind, weekly, diagnosis["stages"], vpa_cfg["zigzag_pct"],
+        regime_label, confidence,
+    )
     target = (
         _fmt_price(signal.suggested_take_profit, market)
         if signal.suggested_take_profit
@@ -166,6 +175,7 @@ def build_report(
         tags=signal.tags,
         chart_html=chart,
         chart_payload=chart_payload,
+        ai_prompt=json.dumps(ai_prompt, ensure_ascii=False),
         lw_cdn=settings.LW_CHARTS_CDN,
         vpa={"stages": diagnosis["stages"], "weekly_context": diagnosis["weekly_context"]},
         weekly_lines=weekly_lines,
