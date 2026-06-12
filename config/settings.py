@@ -56,6 +56,7 @@ GRADE_B_MIN = 50.0
 
 # --- Positions UX ---------------------------------------------------------
 STOP_PROXIMITY_PCT = 3.0  # current price within +3% of stop -> ⚠️손절근접
+MAX_POSITION_SLOTS = 5  # U7/G-2: 보유 카드 "n/5 슬롯", 만석 시 신규 시그널 태그
 
 # --- Send cutoffs (U1/A-2: applied at the SEND stage, separate from rank) --
 MIN_PROFIT_FACTOR_SEND = 1.0  # per-ticker confidence PF below this -> not sent

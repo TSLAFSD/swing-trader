@@ -36,6 +36,21 @@ GitHub Actions (cron) + GitHub Pages (reports) + Telegram (alerts) + Cloudflare 
 - **Telegram top-5 rule**: scan message bodies carry at most 5 signal cards.
 - **MC gate sizing**: Monte Carlo uses 10% equity per trade
   (settings.VAL_MC_TRADE_FRACTION, owner-approved 2026-06-12).
+- **Wyckoff VPA (U2/U3)**: src/analysis/wyckoff_vpa.py is pure + repaint-free
+  (pivots confirmed after pivot_strength right candles); params live under
+  strategies.yaml wyckoff_spring.params.vpa; the distribution monitor
+  (src/risk/distribution.py) runs on HELD tickers regardless of enablement.
+- **Charts (U5)**: lightweight-charts v5 via settings.CHART_BACKEND; Plotly
+  renderer retained — set CHART_BACKEND="plotly" to roll back. All chart data
+  is computed in Python and embedded as JSON; template JS only renders.
+- **AI bridge (U6)**: manual copy ONLY — never auto-call an LLM API, never
+  include positions in report content.
+- **Trailing persistence (U7)**: confirmed scans update highest_close /
+  current_trailing_sl in positions.yaml via update_trailing_state();
+  preliminary (midday) scans must NOT touch it (in-progress bars); workflows
+  commit positions.yaml only when the file actually changed.
+- **Slots (U7)**: settings.MAX_POSITION_SLOTS drives 보유 카드 헤더와 슬롯
+  가득 태그 — advisory only, never blocks signals.
 
 ## Dependency lock notes (Phase 1, 2026-06-11)
 

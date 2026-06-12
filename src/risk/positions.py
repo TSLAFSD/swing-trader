@@ -32,6 +32,9 @@ class Position:
     stop_loss: float | None
     take_profit: float | None
     exit_mode: str = "fixed"
+    # U7/G-1: persisted ATR-trailing state (None until first confirmed scan).
+    highest_close: float | None = None
+    current_trailing_sl: float | None = None
 
 
 def load_positions(path: Path | None = None) -> list[Position]:
@@ -52,9 +55,68 @@ def load_positions(path: Path | None = None) -> list[Position]:
                 stop_loss=None if row.get("stop_loss") is None else float(row["stop_loss"]),
                 take_profit=None if row.get("take_profit") is None else float(row["take_profit"]),
                 exit_mode=row.get("exit_mode", "fixed"),
+                highest_close=None if row.get("highest_close") is None else float(row["highest_close"]),
+                current_trailing_sl=None if row.get("current_trailing_sl") is None else float(row["current_trailing_sl"]),
             )
         )
     return out
+
+
+def save_positions(positions: list[Position], path: Path | None = None) -> None:
+    """Write positions.yaml (single source of truth; schema comment retained)."""
+    path = path or settings.POSITIONS_FILE
+    rows = []
+    for p in positions:
+        row = {
+            "ticker": p.ticker, "market": p.market, "entry_date": str(p.entry_date),
+            "entry_price": p.entry_price, "quantity": p.quantity,
+            "stop_loss": p.stop_loss, "take_profit": p.take_profit,
+            "exit_mode": p.exit_mode,
+        }
+        if p.highest_close is not None:
+            row["highest_close"] = p.highest_close
+            row["current_trailing_sl"] = p.current_trailing_sl
+        rows.append(row)
+    path.write_text(
+        "# Owner's open positions — managed via Telegram /add /remove or by hand.\n"
+        "# highest_close/current_trailing_sl are pipeline-maintained (U7/G-1).\n"
+        + yaml.safe_dump({"positions": rows}, allow_unicode=True, sort_keys=False),
+        encoding="utf-8",
+    )
+
+
+def update_trailing_state(
+    positions: list[Position], frames: dict[str, pd.DataFrame], atr_k: float = 3.0
+) -> bool:
+    """Persist each atr_trailing position's highest close + chandelier stop.
+
+    Confirmed-scan only (preliminary scans must not feed in-progress bars).
+    Returns True when any value changed (caller saves + workflow commits) —
+    unchanged scans produce NO diff, keeping the commit history quiet.
+    """
+    changed = False
+    for pos in positions:
+        if pos.exit_mode != "atr_trailing":
+            continue
+        df = frames.get(pos.ticker)
+        if df is None or df.empty:
+            continue
+        since = df[pd.to_datetime(df["date"]).dt.date >= pos.entry_date]
+        if since.empty:
+            continue
+        highest = float(since["close"].max())
+        if pos.highest_close is not None:
+            highest = max(highest, pos.highest_close)  # never regress on restatement
+        atr = since["atr14"].iloc[-1] if "atr14" in since.columns else float("nan")
+        trailing = round(highest - atr_k * float(atr), 4) if atr == atr else pos.current_trailing_sl
+        if highest != pos.highest_close or trailing != pos.current_trailing_sl:
+            pos.highest_close = round(highest, 4)
+            pos.current_trailing_sl = trailing
+            changed = True
+            logger.info(
+                "trailing state %s: highest %.2f -> stop %s", pos.ticker, highest, trailing
+            )
+    return changed
 
 
 def evaluate_position(pos: Position, df_ind: pd.DataFrame) -> tuple[str | None, dict]:
@@ -72,10 +134,13 @@ def evaluate_position(pos: Position, df_ind: pd.DataFrame) -> tuple[str | None, 
         return None, {}
     last = df.iloc[-1]
     current = float(last["close"])
+    highest = float(df["close"].max())
+    if pos.highest_close is not None:  # persisted state survives data restatements
+        highest = max(highest, pos.highest_close)
     state = exit_engine.PositionState(
         entry_price=pos.entry_price,
         current_close=current,
-        highest_close_since_entry=float(df["close"].max()),
+        highest_close_since_entry=highest,
         days_held=len(df) - 1,
         atr=None if pd.isna(last.get("atr14", np.nan)) else float(last["atr14"]),
         stop_loss=pos.stop_loss,

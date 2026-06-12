@@ -31,6 +31,15 @@ jobs:
         run: pip install -r requirements.txt
       - name: Run US confirmed scan
         run: python main.py scan-us 2>&1 | tee run.log
+      - name: Commit trailing-stop state if changed # U7/G-1: diff only on real change
+        run: |
+          if ! git diff --quiet config/positions.yaml; then
+            git config user.email "pipeline@swing-trader"
+            git config user.name "swing-trader pipeline"
+            git add config/positions.yaml
+            git commit -m "positions: trailing-stop state (us-close)"
+            git push
+          fi
       - name: Failure alert (Telegram)
         if: failure()
         run: python -m src.notify.error_alert "미국 정규 스캔" run.log

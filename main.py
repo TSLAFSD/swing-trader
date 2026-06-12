@@ -182,12 +182,18 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
     sell_msgs: list[str] = []
     holding_rows: list[dict] = []
     from src.risk.distribution import check_distribution
+    from src.risk.positions import save_positions, update_trailing_state
 
-    for pos in [p for p in load_positions() if p.market == market]:
+    all_positions = load_positions()
+    market_positions = [p for p in all_positions if p.market == market]
+    position_frames: dict[str, object] = {}
+    for pos in market_positions:
         tdf = data[data["ticker"] == pos.ticker].sort_values("date").reset_index(drop=True)
         if tdf.empty:
             continue
-        reason, summary = evaluate_position(pos, compute_indicators(tdf))
+        tdf = compute_indicators(tdf)
+        position_frames[pos.ticker] = tdf
+        reason, summary = evaluate_position(pos, tdf)
         if summary:
             summary["name"] = names.get(pos.ticker, pos.ticker)
             holding_rows.append(summary)
@@ -203,7 +209,20 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
         if dist_warn:
             sell_msgs.append(dist_warn)
 
+    # U7/G-1: persist ATR-trailing state — CONFIRMED scans only (preliminary
+    # scans may carry in-progress bars). Saved only when values changed;
+    # the workflow commits positions.yaml only on a real diff.
+    if not preliminary and update_trailing_state(market_positions, position_frames):
+        save_positions(all_positions)
+        logger.info("positions.yaml trailing state updated")
+
     _publish(publish)
+
+    # U7/G-2: slot accounting (capital-level, across both markets).
+    used_slots = len(all_positions)
+    if used_slots >= settings.MAX_POSITION_SLOTS:
+        for sig in result.signals:
+            sig.tags.append(f"⚠️ 슬롯 가득 ({used_slots}/{settings.MAX_POSITION_SLOTS})")
 
     text = messages.scan_message(
         result, urls, conf_labels, preliminary, kr_third, filtered_count=len(send_excluded)
@@ -212,7 +231,12 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
     for msg in sell_msgs:
         telegram.send_message(msg)
     if holding_rows:
-        telegram.send_message(messages.holdings_summary(holding_rows))
+        telegram.send_message(
+            messages.holdings_summary(
+                holding_rows, used_slots=used_slots,
+                max_slots=settings.MAX_POSITION_SLOTS, n_signals=len(result.signals),
+            )
+        )
     logger.info("scan-%s complete: %d signals, %d sell alerts", market, len(result.signals), len(sell_msgs))
 
 

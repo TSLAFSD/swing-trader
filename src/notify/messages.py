@@ -100,14 +100,23 @@ def sell_alert(ticker: str, name: str, market: str, reason: str, entry_price: fl
     )
 
 
-def holdings_summary(rows: list[dict]) -> str:
+def holdings_summary(
+    rows: list[dict],
+    used_slots: int | None = None,
+    max_slots: int | None = None,
+    n_signals: int = 0,
+) -> str:
     """U4: one line per position — 평단 | 현재가 | 수익률 | ⚠️손절근접 only.
 
+    U7: slot header ("📊 3/5 슬롯") + remaining-slot selection hint.
     Details (stop/target distances) moved to /positions. Telegram ONLY.
     """
     if not rows:
         return ""
-    lines = ["💼 보유 현황 (상세는 /positions)"]
+    header = "💼 보유 현황 (상세는 /positions)"
+    if used_slots is not None and max_slots:
+        header = f"💼 보유 현황 · 📊 {used_slots}/{max_slots} 슬롯 (상세는 /positions)"
+    lines = [header]
     for r in rows:
         market = r.get("market", "us")
         near_stop = " ⚠️손절근접" if r.get("near_stop") else ""
@@ -115,6 +124,9 @@ def holdings_summary(rows: list[dict]) -> str:
             f"· {r['name']}({r['ticker']}) 평단 {_fmt_price(r['entry_price'], market)} | "
             f"현재 {_fmt_price(r['current'], market)} | {r['pnl_pct']:+.1f}%{near_stop}"
         )
+    if used_slots is not None and max_slots and used_slots < max_slots and n_signals > 0:
+        remain = max_slots - used_slots
+        lines.append(f"남은 슬롯 {remain} — 오늘 시그널 중 TOP {min(remain, n_signals)}만 선별 권장")
     return "\n".join(lines)
 
 
