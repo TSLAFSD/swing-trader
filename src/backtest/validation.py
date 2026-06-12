@@ -29,15 +29,25 @@ from src.backtest.backtester import EntryPlan, aggregate_stats, generate_entry_p
 
 logger = logging.getLogger(__name__)
 
-# Key entry parameters perturbed in G5, per strategy.
+# Key entry parameters perturbed in G5, per strategy ("a.b" = nested path).
 SENSITIVITY_PARAMS: dict[str, list[str]] = {
     "pullback": ["rsi_max", "adx_min"],
     "zscore_meanrev": ["z_entry", "vol_mult"],
     "connors_rsi2": ["rsi2_entry"],
     "breakout": ["vol_mult", "adx_min"],
     "squeeze": ["vol_mult", "squeeze_min_days"],
-    "wyckoff_spring": ["range_max_width_pct", "vol_mult"],
+    "wyckoff_spring": ["vpa.vol_mult", "vpa.exhaust_ratio"],
 }
+
+
+def _perturb_param(params: dict, path: str, mult: float) -> None:
+    """Multiply a (possibly nested, dot-separated) numeric param in place."""
+    node = params
+    keys = path.split(".")
+    for key in keys[:-1]:
+        node = node[key]
+    original = node[keys[-1]]
+    node[keys[-1]] = type(original)(original * mult)
 
 
 @dataclass
@@ -207,8 +217,7 @@ def validate_strategy(
     for param in SENSITIVITY_PARAMS.get(sid, []):
         for mult in (1 - settings.VAL_SENS_PERTURB, 1 + settings.VAL_SENS_PERTURB):
             cfg = copy.deepcopy(base_config)
-            original = cfg["strategies"][sid]["params"][param]
-            cfg["strategies"][sid]["params"][param] = type(original)(original * mult)
+            _perturb_param(cfg["strategies"][sid]["params"], param, mult)
             perturbed = strategy_cls(cfg)
             p_plans = {
                 t: generate_entry_plan(df, perturbed, t, market_of[t])

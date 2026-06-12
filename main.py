@@ -165,6 +165,8 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
     data["date"] = __import__("pandas").to_datetime(data["date"]).dt.date
     sell_msgs: list[str] = []
     holding_rows: list[dict] = []
+    from src.risk.distribution import check_distribution
+
     for pos in [p for p in load_positions() if p.market == market]:
         tdf = data[data["ticker"] == pos.ticker].sort_values("date").reset_index(drop=True)
         if tdf.empty:
@@ -180,6 +182,10 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
                     reason, pos.entry_price, summary["current"],
                 )
             )
+        # Distribution monitor (U3/C-2): sell-side VPA warning, never auto-sell.
+        dist_warn = check_distribution(tdf, names.get(pos.ticker, pos.ticker), pos.ticker)
+        if dist_warn:
+            sell_msgs.append(dist_warn)
 
     _publish(publish)
 

@@ -80,13 +80,7 @@ strategies:
     params:
       atr_k: 3.0
       time_stop_days: 15
-      # legacy range-spring params — consumed by the pre-U3 strategy logic,
-      # removed when U3 swaps in the VPA 3-stage entry
-      range_days: 60
-      range_max_width_pct: 15.0
-      spring_lookback: 3
-      vol_mult: 1.2
-      # --- Wyckoff VPA engine (src/analysis/wyckoff_vpa.py, U2) ---
+      # --- Wyckoff VPA engine (src/analysis/wyckoff_vpa.py, U2/U3) ---
       vpa:
         lookback: 60          # bars scanned for liquidity pivots
         pivot_strength: 3     # right-side candles required to CONFIRM a pivot
@@ -97,3 +91,4 @@ strategies:
         zigzag_pct: 3.0       # Weis wave reversal threshold (%)
         retest_window: 10     # bars after climax for the retest wave to begin
         exhaust_ratio: 0.5    # retest volume <= ratio x climax-wave volume
+        signal_window: 5      # bars after the retest in which entry may trigger

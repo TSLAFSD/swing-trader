@@ -155,27 +155,33 @@ class TestSqueeze:
 
 
 class TestWyckoffSpring:
-    def fire_frame(self) -> pd.DataFrame:
-        # 60d range 48..52 (width 8.3% < 15%), spring: yesterday low 47 close 49.
-        df = base_frame(n=260, close=50.0)
-        df["high"] = 52.0
-        df["low"] = 48.0
-        idx = df.index
-        df.loc[idx[-2], ["low", "close"]] = [47.0, 49.0]
-        df.loc[idx[-1], ["open", "close", "low", "high", "volume"]] = [
-            49.0, 50.5, 48.5, 50.8, 1_500_000.0,
-        ]
-        return df
+    """U3: VPA 3-stage entry — synthetic spring padded to min_bars."""
+
+    def fire_frame(self, **spring_kwargs) -> pd.DataFrame:
+        from src.analysis.indicators import compute_indicators
+        from tests.test_wyckoff_vpa import make_df, spring_frame
+
+        pattern = spring_frame(**spring_kwargs)
+        pad = make_df([100.0] * 120)
+        df = pd.concat([pad, pattern], ignore_index=True)
+        df["date"] = pd.bdate_range("2024-06-03", periods=len(df)).date
+        return compute_indicators(df)
 
     def test_fires(self) -> None:
         sig = WyckoffSpringStrategy(CFG).evaluate(self.fire_frame(), "TEST", "테스트", "us")
         assert sig is not None
-        assert sig.suggested_stop_loss < 47.0 * 1.001  # just below spring low
+        assert sig.suggested_stop_loss == pytest.approx(96.5 * 0.995)  # below climax low
+        assert sig.exit_mode == "atr_trailing"
+        assert "공급 고갈" in sig.reason and "클라이맥스" in sig.reason
 
-    def test_blocked_by_wide_range(self) -> None:
-        df = self.fire_frame()
-        df.loc[df.index[:-2], "high"] = 60.0  # range width ~25% > 15% cap
+    def test_blocked_by_heavy_retest(self) -> None:
+        # Padded climax wave cum ~148k -> retest needs ~40k/bar to exceed 0.5.
+        df = self.fire_frame(retest_vol=40_000.0)
         assert WyckoffSpringStrategy(CFG).evaluate(df, "TEST", "테스트", "us") is None
+
+    def test_checklist_reports_stage(self) -> None:
+        line = WyckoffSpringStrategy(CFG).checklist_kr(self.fire_frame(retest_vol=40_000.0))
+        assert "미충족" in line and "공급 고갈" in line
 
 
 # (Confluence merge-layer tests removed in U1/A-4 along with the module.)
