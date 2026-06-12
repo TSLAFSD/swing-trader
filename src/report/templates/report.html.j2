@@ -39,11 +39,14 @@
   <h1>{{ name }} <span class="meta">({{ ticker }} · {{ market_label }})</span></h1>
   <div class="meta">발행: {{ issued_at }}</div>
   <div class="badges">
+    {% if grade %}<span class="badge strategy">종합 등급 {{ grade }}</span>{% endif %}
+    {% if wyckoff_badge %}<span class="badge">{{ wyckoff_badge }}</span>{% endif %}
     {% for b in strategy_badges %}<span class="badge strategy">{{ b }}</span>{% endfor %}
     <span class="badge">강도 {{ strength }}</span>
     <span class="badge">신뢰도 {{ confidence_label }}</span>
     {% for t in tags %}<span class="badge warn">{{ t }}</span>{% endfor %}
   </div>
+  {% if grade_basis %}<div class="meta">등급 산출: {{ grade_basis }}</div>{% endif %}
 
   <h2>📈 차트 (6개월 · 터치 확대/이동)</h2>
   <div class="chart">{{ chart_html | safe }}</div>
@@ -76,7 +79,7 @@
 
   <h2>🎯 매매 계획</h2>
   <div class="grid">
-    <div class="card"><div class="k">제안 매수가</div><div class="v">{{ plan.entry }}</div></div>
+    <div class="card"><div class="k">매수 범위 (상단 초과 = 추격 금지)</div><div class="v">{{ plan.entry }}</div></div>
     <div class="card"><div class="k">손절 ({{ plan.stop_mode }})</div><div class="v">{{ plan.stop }}</div></div>
     <div class="card"><div class="k">목표</div><div class="v">{{ plan.target }}</div></div>
     {% if plan.kelly %}
@@ -93,6 +96,11 @@
         <td>{{ confidence.mdd }}</td><td>{{ confidence.risk_label }}</td></tr>
   </table>
   <p class="meta">{{ validation_note }}</p>
+
+  {% if contrarian %}
+  <h2>⚠️ 주의 요인 (역행 지표 {{ contrarian | length }}개)</h2>
+  <ul>{% for line in contrarian %}<li>{{ line }}</li>{% endfor %}</ul>
+  {% endif %}
 
   <h2>🌐 시장 국면</h2>
   <p>{{ regime_label }}</p>

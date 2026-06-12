@@ -91,12 +91,18 @@ def evaluate_position(pos: Position, df_ind: pd.DataFrame) -> tuple[str | None, 
     target_txt = (
         f"{((pos.take_profit / current) - 1) * 100:+.1f}%" if pos.take_profit else "추적/조건"
     )
+    near_stop = bool(
+        pos.stop_loss and current <= pos.stop_loss * (1 + settings.STOP_PROXIMITY_PCT / 100)
+    )
     summary = {
         "ticker": pos.ticker,
         "name": pos.ticker,
+        "market": pos.market,
+        "entry_price": pos.entry_price,
         "current": current,
         "pnl_pct": pnl_pct,
         "to_stop_pct": to_stop,
         "to_target": target_txt,
+        "near_stop": near_stop,
     }
     return reason, summary

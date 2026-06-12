@@ -60,16 +60,20 @@ def check_us_gaps(today: date | None = None) -> list[dict]:
             continue
         sig_price = float(row["price"])
         gap = (current / sig_price - 1) * 100
+        # U4: judgments unified on the ENTRY ZONE (signal price ~ zone top).
+        zone_top = row.get("entry_zone_top")
+        zone_top = float(zone_top) if pd.notna(zone_top) else sig_price * (1 + threshold / 100)
         item = {
             "ticker": row["ticker"],
             "signal_price": sig_price,
             "current_price": current,
             "gap_pct": gap,
             "threshold": threshold,
+            "zone_top": zone_top,
+            "above_zone": current > zone_top,
         }
-        if gap >= threshold:
-            # Recalculate stop/target FROM THE CURRENT PRICE (spec §11.1):
-            # keep the signal's risk distances, re-anchored to the live quote.
+        if item["above_zone"]:
+            # Re-anchor the signal's risk distances to the live quote (§11.1).
             ratio = current / sig_price
             stop = row.get("stop_loss")
             target = row.get("take_profit")

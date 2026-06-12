@@ -324,3 +324,36 @@ def detect_demand_exhaustion(
 ) -> Exhaustion | None:
     """Low-volume retest after a Buying Climax / UTAD (sell side)."""
     return _detect_exhaustion(waves, climax, retest_window, exhaust_ratio, SELL)
+
+
+def diagnose_stage_count(df: pd.DataFrame, vpa: dict) -> int:
+    """How many buy-side stages (level/climax/exhaustion) are present: 0-3.
+
+    Used by the Telegram Wyckoff badge (U4): 3=🟢 매집권, 1-2=🟡 관찰, 0=⚪.
+    """
+    level = detect_liquidity_low(
+        df, lookback=vpa["lookback"], pivot_strength=vpa["pivot_strength"],
+        equal_low_pct=vpa["equal_low_pct"],
+    )
+    if level is None:
+        return 0
+    climax = detect_selling_climax(
+        df, level.level, vol_ma_days=vpa["vol_ma_days"],
+        vol_mult=vpa["vol_mult"], wick_body_ratio=vpa["wick_body_ratio"],
+    )
+    if climax is None:
+        return 1
+    exhaustion = detect_supply_exhaustion(
+        weis_waves(df, zigzag_pct=vpa["zigzag_pct"]), climax,
+        retest_window=vpa["retest_window"], exhaust_ratio=vpa["exhaust_ratio"],
+    )
+    return 2 if exhaustion is None else 3
+
+
+def wyckoff_badge_kr(stage_count: int) -> str:
+    """Telegram badge label for a stage count."""
+    if stage_count >= 3:
+        return "🟢 매집권"
+    if stage_count >= 1:
+        return f"🟡 관찰({stage_count}/3)"
+    return "⚪ 해당 없음"

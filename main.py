@@ -47,6 +47,7 @@ def _publish(publish: bool) -> None:
 
 def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
     """Full confirmed-scan pipeline for one market."""
+    from src.analysis.base_strategy import load_strategy_config
     from src.analysis.registry import get_strategies
     from src.analysis.signal_engine import scan_market
     from src.backtest import tracker
@@ -124,6 +125,21 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
         conf_labels[sig.ticker] = f"{conf.score:.2f}"
         # Final rank = strength x confidence (re-rank below).
         sig.strength = round(sig.strength * max(conf.score, 0.1), 1)
+
+        # U4 enrichments: grade / Wyckoff badge / entry zone / contrarian list.
+        from src.analysis.grading import composite_grade, contrarian_indicators, entry_zone_top
+        from src.analysis.wyckoff_vpa import diagnose_stage_count, wyckoff_badge_kr
+
+        grade = composite_grade(
+            sig.strength, conf.score,
+            result.regime.downgrade_factor if result.regime else None,
+        )
+        sig.grade, sig.grade_basis = grade.letter, grade.basis_kr
+        vpa_params = load_strategy_config()["strategies"]["wyckoff_spring"]["params"]["vpa"]
+        sig.wyckoff_badge = wyckoff_badge_kr(diagnose_stage_count(df_ind, vpa_params))
+        last_atr = df_ind["atr14"].iloc[-1]
+        sig.entry_zone_top = entry_zone_top(sig.price, None if last_atr != last_atr else float(last_atr))
+        sig.contrarian = contrarian_indicators(df_ind)
         corr_warn = None
         if held and held_data is not None and not held_data.empty:
             closes = {sig.ticker: df_ind["close"]}

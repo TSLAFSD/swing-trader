@@ -125,12 +125,21 @@ def build_report(
         if signal.suggested_take_profit
         else ("ATR 추적 청산" if signal.exit_mode == "atr_trailing" else "전략 조건 청산")
     )
+    zone = (
+        f"{_fmt_price(signal.price, market)} ~ {_fmt_price(signal.entry_zone_top, market)}"
+        if signal.entry_zone_top
+        else _fmt_price(signal.price, market)
+    )
     template = _env.get_template("report.html.j2")
     html = template.render(
         name=signal.name,
         ticker=signal.ticker,
         market_label=MARKET_LABEL[market],
         issued_at=datetime.now(KST).strftime("%Y-%m-%d %H:%M KST"),
+        grade=signal.grade,
+        grade_basis=signal.grade_basis,
+        wyckoff_badge=signal.wyckoff_badge,
+        contrarian=signal.contrarian,
         strategy_badges=[signal.strategy_id],
         strength=f"{signal.strength:.0f}",
         confidence_label=f"{confidence.score:.2f}",
@@ -142,7 +151,7 @@ def build_report(
         reason=signal.reason,
         strategy_ranking=strategy_ranking or [],
         plan={
-            "entry": _fmt_price(signal.price, market),
+            "entry": zone,
             "stop": _fmt_price(signal.suggested_stop_loss, market),
             "stop_mode": "ATR 추적" if signal.exit_mode == "atr_trailing" else "고정",
             "target": target,

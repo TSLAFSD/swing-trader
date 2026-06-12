@@ -41,6 +41,22 @@ HISTORY_YEARS = 3  # default depth for initial fetch / backtests
 # --- Data quality ------------------------------------------------------
 ANOMALY_DAILY_MOVE_PCT = 30.0  # 1-day move beyond +-30% -> exclude from signals, flag
 
+# --- Composite grade A/B/C (U4/Part D; report shows the same numbers) -----
+# composite = strength*W_S + confidence*100*W_C + regime_score*W_R
+# regime_score: no downgrade=100, one downgrade (index OR breadth)=50, both=0
+GRADE_W_STRENGTH = 0.5
+GRADE_W_CONFIDENCE = 0.3
+GRADE_W_REGIME = 0.2
+GRADE_A_MIN = 70.0
+GRADE_B_MIN = 50.0
+
+# Contrarian indicators counted on signal cards (full list in the report):
+# ① close<SMA200 ② MACD hist<0 ③ RSI14>70 ④ volume<0.7xVolMA20
+# ⑤ zscore>+1.5 ⑥ SMA60 slope down  (owner-approved 2026-06-12)
+
+# --- Positions UX ---------------------------------------------------------
+STOP_PROXIMITY_PCT = 3.0  # current price within +3% of stop -> ⚠️손절근접
+
 # --- Send cutoffs (U1/A-2: applied at the SEND stage, separate from rank) --
 MIN_PROFIT_FACTOR_SEND = 1.0  # per-ticker confidence PF below this -> not sent
 MIN_SAMPLE_SEND = 5  # confidence trades below this -> not sent; also hides Kelly

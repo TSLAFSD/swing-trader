@@ -21,7 +21,7 @@ SIGNALS_FILE = settings.DATA_ROOT / "signals" / "signals.parquet"
 
 COLUMNS = [
     "signal_date", "ticker", "market", "strategy_id", "strength", "price",
-    "stop_loss", "take_profit",
+    "stop_loss", "take_profit", "entry_zone_top",
 ]
 
 
@@ -43,6 +43,7 @@ def record_signals(signals: list[Signal], path: Path | None = None) -> int:
                 "price": s.price,
                 "stop_loss": s.suggested_stop_loss,
                 "take_profit": s.suggested_take_profit,
+                "entry_zone_top": s.entry_zone_top,
             }
             for s in signals
         ],
