@@ -8,3 +8,11 @@ positions:
   stop_loss: 277.001
   take_profit: 335.317
   exit_mode: fixed
+- ticker: 005930
+  market: kr
+  entry_date: '2026-06-12'
+  entry_price: 299000.0
+  quantity: 1.0
+  stop_loss: 230789.8554
+  take_profit: null
+  exit_mode: atr_trailing
