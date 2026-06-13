@@ -111,6 +111,13 @@ LW_CHARTS_CDN = "https://unpkg.com/lightweight-charts@5/dist/lightweight-charts.
 # --- Gap Guard (us-premarket, spec §11.1) --------------------------------
 GAP_ALERT_PCT = 3.0
 
+# --- /analyze diagnostic ---------------------------------------------------
+# Reference (참고) stop shown in the deep-analysis report: current price minus
+# k*ATR(14) — the level an ATR-trailing exit would start at. Matches the
+# chandelier convention (atr_k=3.0) used by the trailing strategies. /analyze
+# fires no strategy, so this is an informational anchor, never a live stop.
+ANALYZE_REF_ATR_K = 3.0
+
 # --- Positions ------------------------------------------------------------
 POSITIONS_FILE = REPO_ROOT / "config" / "positions.yaml"
 REBUY_COOLDOWN_DAYS = 0  # 0 = off; >0 blocks re-signals for N days after /remove
