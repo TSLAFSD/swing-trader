@@ -16,7 +16,7 @@ const REPO = "TSLAFSD/swing-trader";
 
 const COMMANDS = {
   "/add": { args: [2, 3], ack: (a) => `⏳ '${a[0]}' 추가 요청 접수 — 약 1분 소요` },
-  "/remove": { args: [1, 1], ack: (a) => `⏳ '${a[0]}' 제거 요청 접수 — 약 1분 소요` },
+  "/remove": { args: [1, 2], ack: (a) => `⏳ '${a[0]}' 제거 요청 접수 — 약 1분 소요` },
   "/positions": { args: [0, 0], ack: () => "⏳ 보유 현황 조회 중 — 약 1분 소요" },
   "/scan": { args: [1, 1], ack: (a) => `⏳ ${a[0] === "kr" ? "한국" : "미국"} 스캔 시작 — 약 20~40분 소요` },
   "/analyze": { args: [1, 1], ack: (a) => `⏳ '${a[0]}' 분석 요청 접수 — 약 1~2분 소요` },
@@ -25,7 +25,7 @@ const COMMANDS = {
 const HELP = [
   "📖 사용 가능한 명령:",
   "/add AAPL 230.5 10 — 보유 종목 추가 (티커 가격 수량)",
-  "/remove AAPL — 보유 종목 제거",
+  "/remove AAPL [청산가] — 보유 종목 제거 (청산가 생략 시 최근 종가로 추정 기록)",
   "/positions — 보유 현황",
   "/scan kr 또는 /scan us — 수동 스캔",
   "/analyze AAPL 또는 /analyze 005930 — 종목 딥 분석",
