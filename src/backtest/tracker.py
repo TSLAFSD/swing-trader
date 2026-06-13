@@ -5,7 +5,9 @@ weekly job computes realized +5d/+10d forward returns against stored closes,
 feeds the per-strategy circuit breaker, and renders a Korean summary.
 """
 
+import json
 import logging
+import math
 from datetime import date
 from pathlib import Path
 
@@ -22,7 +24,28 @@ SIGNALS_FILE = settings.DATA_ROOT / "signals" / "signals.parquet"
 COLUMNS = [
     "signal_date", "ticker", "market", "strategy_id", "strength", "price",
     "stop_loss", "take_profit", "entry_zone_top",
+    # P-A: turn the signal log into a labeled dataset — the grade/confidence/
+    # regime context plus the entry-time indicator snapshot (features) behind
+    # each recommendation. forward_returns() supplies the labels. Old rows keep
+    # NaN here (backward compatible).
+    "grade", "grade_value", "confidence", "regime_factor", "features_json",
 ]
+
+
+def _features_json(indicators: dict | None) -> str:
+    """Serialize a Signal.indicators snapshot to a compact JSON string.
+
+    numpy scalars are coerced to float; non-finite values (NaN/inf — invalid
+    JSON) become null so the row stays machine-readable.
+    """
+    out: dict[str, float | None] = {}
+    for key, value in (indicators or {}).items():
+        try:
+            num = float(value)
+        except (TypeError, ValueError):
+            continue
+        out[str(key)] = num if math.isfinite(num) else None
+    return json.dumps(out, ensure_ascii=False, sort_keys=True)
 
 
 def record_signals(signals: list[Signal], path: Path | None = None) -> int:
@@ -44,6 +67,11 @@ def record_signals(signals: list[Signal], path: Path | None = None) -> int:
                 "stop_loss": s.suggested_stop_loss,
                 "take_profit": s.suggested_take_profit,
                 "entry_zone_top": s.entry_zone_top,
+                "grade": s.grade,
+                "grade_value": s.grade_value,
+                "confidence": s.confidence,
+                "regime_factor": s.regime_factor,
+                "features_json": _features_json(s.indicators),
             }
             for s in signals
         ],

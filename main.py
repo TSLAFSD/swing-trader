@@ -28,6 +28,7 @@ JOB_KR = {
     "scan-kr-midday": "한국 예비 스캔",
     "gap-guard-us": "미국 프리마켓 갭 체크",
     "weekly": "주간 점검",
+    "feedback": "페이퍼 트레이딩 분석",
     "analyze": "종목 딥 분석",
     "position-add": "보유 종목 추가",
     "position-remove": "보유 종목 제거",
@@ -134,7 +135,9 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
             sig.strength, conf.score,
             result.regime.downgrade_factor if result.regime else None,
         )
-        sig.grade, sig.grade_basis = grade.letter, grade.basis_kr
+        sig.grade, sig.grade_value, sig.grade_basis = grade.letter, grade.value, grade.basis_kr
+        sig.confidence = conf.score
+        sig.regime_factor = result.regime.downgrade_factor if result.regime else None
         vpa_params = load_strategy_config()["strategies"]["wyckoff_spring"]["params"]["vpa"]
         sig.wyckoff_badge = wyckoff_badge_kr(diagnose_stage_count(df_ind, vpa_params))
         last_atr = df_ind["atr14"].iloc[-1]
@@ -216,6 +219,20 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
         save_positions(all_positions)
         logger.info("positions.yaml trailing state updated")
 
+    # Paper portfolio (가상 매매): CONFIRMED scans only — virtually buy fresh
+    # A-grade signals at the confirmed close and manage them via the SAME exit
+    # path as the live monitor (forward OOS track record). Runs before _publish
+    # so paper/trades.parquet + paper/open.json ride the data branch. Note
+    # result.signals here is already send-filtered (the actually-alerted set).
+    if not preliminary and settings.PAPER_ENABLED:
+        from src.paper.portfolio import update_paper_portfolio
+
+        paper = update_paper_portfolio(market, result.signals, store)
+        logger.info(
+            "paper portfolio: +%d open, -%d closed, %d held",
+            paper["n_opened"], len(paper["closed"]), paper["open_total"],
+        )
+
     _publish(publish)
 
     # U7/G-2: slot accounting (capital-level, across both markets).
@@ -254,6 +271,34 @@ def _gap_guard() -> None:
     telegram.send_message(messages.gap_guard_message(items))
 
 
+def _paper_benchmark_pct(trades, open_rows) -> float | None:
+    """S&P500 (^GSPC) buy-and-hold return over the paper portfolio's active
+    window — the 'did we beat the market' yardstick for the weekly summary."""
+    import pandas as pd
+
+    from src.paper.stats import summarize
+
+    s = summarize(trades, open_rows)
+    if not (s["period_start"] and s["period_end"]):
+        return None
+    try:
+        from src.analysis.regime import _fetch_index_series
+
+        series = _fetch_index_series("us")
+        if series is None or len(series) == 0:
+            return None
+        series = series.copy()
+        series.index = pd.to_datetime(series.index)
+        start_slice = series[series.index <= pd.Timestamp(s["period_start"])]
+        end_slice = series[series.index <= pd.Timestamp(s["period_end"])]
+        if start_slice.empty or end_slice.empty:
+            return None
+        return float(end_slice.iloc[-1] / start_slice.iloc[-1] - 1) * 100
+    except Exception:
+        logger.exception("weekly: benchmark computation failed")
+        return None
+
+
 def _weekly(publish: bool = True) -> None:
     """Weekly job: tracking report, circuit breaker, universe refresh, re-validation."""
     from src.analysis.registry import get_strategies
@@ -276,6 +321,32 @@ def _weekly(publish: bool = True) -> None:
     summary = tracker.weekly_summary_kr(fwd)
     realized = discipline_summary_kr(load_closed_trades())
 
+    # Paper portfolio (P-B): forward OOS performance summary + dashboard page.
+    from src.paper import portfolio as paper
+    from src.paper import stats as paper_stats
+    from src.report.html_builder import report_url
+    from src.report.paper_report import build_paper_report
+
+    paper_trades = paper.load_trades()
+    paper_open = paper.load_open()
+    benchmark = _paper_benchmark_pct(paper_trades, paper_open)
+    paper_path = build_paper_report(paper_trades, paper_open, benchmark_pct=benchmark)
+    paper_summary = paper_stats.summary_kr(
+        paper_trades, paper_open, benchmark_pct=benchmark, url=report_url(paper_path)
+    )
+
+    # P-C feedback: reuse the already-computed forward returns (no extra compute).
+    from src.paper import feedback as paper_fb
+
+    fb_report = paper_fb.build_feedback(fwd, paper_trades)
+    paper_fb.write_findings(fb_report)  # data/paper/feedback.json (rides data branch)
+    insight = paper_fb.feedback_kr(fb_report, full=False)
+
+    if publish:
+        from src.report.publisher import publish_reports
+
+        publish_reports()  # push paper.html (merges with existing per-signal reports)
+
     strategy_ids = [s.strategy_id for s in get_strategies(enabled_only=False)]
     decisions = circuit_breaker.update_all(fwd, strategy_ids)
     cb_lines = [f"· {d.strategy_id}: {d.reason_kr}" for d in decisions if d.suspended]
@@ -285,7 +356,8 @@ def _weekly(publish: bool = True) -> None:
         f"· {sid}: {'게이트 통과' if r.passed else '게이트 미달'}" for sid, r in reports.items()
     ]
     text = (
-        f"{summary}\n\n{realized}\n\n🔁 주간 재검증 결과 (enabled 변경은 수동 승인 필요):\n"
+        f"{summary}\n\n{realized}\n\n{paper_summary}\n\n{insight}\n\n"
+        "🔁 주간 재검증 결과 (enabled 변경은 수동 승인 필요):\n"
         + "\n".join(val_lines)
     )
     if cb_lines:
@@ -294,12 +366,38 @@ def _weekly(publish: bool = True) -> None:
     telegram.send_message(text)
 
 
+def _feedback(publish: bool = True) -> None:
+    """On-demand 'what worked' analysis from the paper datasets (read-only).
+
+    Reads signals.parquet (+ forward returns) and paper/trades.parquet, writes
+    machine-readable findings.json, and sends the Korean report. Suggestions are
+    manual-apply only — this never changes enabled/params.
+    """
+    from src.backtest import tracker
+    from src.data.store import ParquetStore, restore_from_data_branch
+    from src.notify import telegram
+    from src.paper import feedback as fb
+    from src.paper import portfolio as paper
+
+    restore_from_data_branch()
+    store = ParquetStore()
+    fwd = tracker.forward_returns(store, tracker.load_signals())
+    report = fb.build_feedback(fwd, paper.load_trades())
+    fb.write_findings(report)
+    if publish:
+        try:
+            _publish(True)  # persist feedback.json on the data branch
+        except FileNotFoundError:
+            logger.info("feedback: no market parquet yet — skipping data-branch publish")
+    telegram.send_message(fb.feedback_kr(report, full=True))
+
+
 def main() -> None:
     """Parse CLI arguments and dispatch with a Telegram-alerting crash guard."""
     parser = argparse.ArgumentParser(prog="swing-trader")
     parser.add_argument("--no-publish", action="store_true", help="skip branch pushes (local runs)")
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("scan-us", "scan-kr", "scan-kr-midday", "gap-guard-us", "weekly"):
+    for name in ("scan-us", "scan-kr", "scan-kr-midday", "gap-guard-us", "weekly", "feedback"):
         sub.add_parser(name)
     backtest = sub.add_parser("backtest")
     backtest.add_argument("--smoke", action="store_true")
@@ -327,6 +425,8 @@ def main() -> None:
             _gap_guard()
         elif args.command == "weekly":
             _weekly(publish=publish)
+        elif args.command == "feedback":
+            _feedback(publish=publish)
         elif args.command == "backtest":
             from src.backtest.run_validation import run
 

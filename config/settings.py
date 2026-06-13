@@ -124,6 +124,24 @@ REBUY_COOLDOWN_DAYS = 0  # 0 = off; >0 blocks re-signals for N days after /remov
 POSITION_DEFAULT_STOP_PCT = 5.0  # /add default stop (editable in positions.yaml)
 POSITION_DEFAULT_TARGET_PCT = 15.0  # /add default target
 
+# --- Paper portfolio (가상 매매: forward out-of-sample 성적표; P-A) ---------
+# A virtual portfolio that buys fresh A-grade signals at the confirmed close
+# and exits via the SAME engine the live monitor uses (parity). Distinct from
+# owner positions (positions.yaml) and from the flat signals.parquet study.
+PAPER_ENABLED = True  # run the virtual portfolio on confirmed scans
+PAPER_START_EQUITY = 10_000.0  # virtual base capital (abstract notional units)
+PAPER_TRADE_FRACTION = 0.20  # notional per trade = START_EQUITY * this (5 slots = 100%)
+PAPER_GRADES = ("A",)  # only these composite grades enter the paper portfolio
+PAPER_SLIPPAGE_BPS = 5.0  # one-way slippage, basis points (entry pays more, exit less)
+PAPER_FEE_BPS = 0.0  # commission per side, basis points (0 = none)
+PAPER_DIR = DATA_ROOT / "paper"  # rides the orphan `data` branch (parquet + json glob)
+PAPER_TRADES_FILE = PAPER_DIR / "trades.parquet"  # append-only closed-trade ledger
+PAPER_OPEN_FILE = PAPER_DIR / "open.json"  # mutable open-position state (JSON, not YAML)
+PAPER_SCHEMA_VERSION = 1
+# P-C feedback loop (read-only "what worked"; suggestions are manual-apply only).
+PAPER_FEEDBACK_MIN_SAMPLE = 10  # min rows before a feedback suggestion is trusted
+PAPER_FEEDBACK_FILE = PAPER_DIR / "feedback.json"  # machine-readable findings (Claude/P-C)
+
 # --- Telegram (send-only; secrets via env) -----------------------------
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")

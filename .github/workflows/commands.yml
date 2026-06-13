@@ -50,6 +50,7 @@ jobs:
             /positions) python main.py positions-report 2>&1 | tee run.log ;;
             /scan)     python main.py "scan-${A[0]}" 2>&1 | tee run.log ;;
             /analyze)  python main.py analyze "${A[0]}" 2>&1 | tee run.log ;;
+            /feedback) python main.py feedback 2>&1 | tee run.log ;;
             *) echo "unknown command $CMD" | tee run.log; exit 1 ;;
           esac
       - name: Commit positions.yaml if changed

@@ -47,7 +47,10 @@ class Signal:
     tags: list[str] = field(default_factory=list)  # e.g. 실적발표 경고, 시장 약세
     # --- U4 scan-time enrichments (filled in main._scan, None until then) ---
     grade: str | None = None  # A | B | C
+    grade_value: float | None = None  # composite 0-100 (Grade.value; signals.parquet)
     grade_basis: str = ""  # derivation string (report)
+    confidence: float | None = None  # per-ticker confidence 0-1 (signals.parquet)
+    regime_factor: float | None = None  # regime downgrade_factor (signals.parquet)
     wyckoff_badge: str = ""  # 🟢 매집권 / 🟡 관찰 / ⚪ 해당 없음
     entry_zone_top: float | None = None  # 매수 범위 상단 (above = 추격 금지)
     contrarian: list[str] = field(default_factory=list)  # against-the-buy list

@@ -19,3 +19,6 @@ __pycache__/
 .idea/
 .vscode/
 reports_out/
+
+# Cloudflare Worker local cache
+worker/.wrangler/

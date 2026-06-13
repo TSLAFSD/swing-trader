@@ -20,6 +20,7 @@ const COMMANDS = {
   "/positions": { args: [0, 0], ack: () => "⏳ 보유 현황 조회 중 — 약 1분 소요" },
   "/scan": { args: [1, 1], ack: (a) => `⏳ ${a[0] === "kr" ? "한국" : "미국"} 스캔 시작 — 약 20~40분 소요` },
   "/analyze": { args: [1, 1], ack: (a) => `⏳ '${a[0]}' 분석 요청 접수 — 약 1~2분 소요` },
+  "/feedback": { args: [0, 0], ack: () => "⏳ 페이퍼 트레이딩 분석 중 — 약 1~2분 소요" },
 };
 
 const HELP = [
@@ -29,6 +30,7 @@ const HELP = [
   "/positions — 보유 현황",
   "/scan kr 또는 /scan us — 수동 스캔",
   "/analyze AAPL 또는 /analyze 005930 — 종목 딥 분석",
+  "/feedback — 가상 포트폴리오 분석 (무엇이 통했나)",
   "/help — 이 도움말",
 ].join("\n");
 

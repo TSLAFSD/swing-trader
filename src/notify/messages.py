@@ -80,6 +80,12 @@ def scan_message(
         body.append("⚠️ 3차 소스(yfinance) 사용 — 데이터 정확도 주의")
     if result.signals:
         body.append("")
+        # 오늘의 최우선 추천: the #1 ranked signal (highest strength) is crowned so
+        # the owner sees a single clear top pick before the full card list.
+        top = result.signals[0]
+        top_grade = f"등급 {top.grade}" if top.grade else f"강도 {top.strength:.0f}"
+        body.append(f"🏆 오늘의 최우선 추천: {top.name}({top.ticker}) · {top_grade}")
+        body.append("")
         for i, sig in enumerate(result.signals[:TOP_N_IN_MESSAGE], 1):
             body.append(_signal_card(i, sig, report_urls.get(sig.ticker), confidence_labels.get(sig.ticker)))
             body.append("")
