@@ -116,6 +116,29 @@ def analyze(ticker: str, publish: bool = True) -> None:
         suggested_take_profit=None, exit_mode="fixed",
         reason="온디맨드 딥 분석 — 매수 신호가 아닌 현재 상태 진단입니다.", tags=tags,
     )
+    # Wyckoff badge: scan path sets this (main.py); analyze must mirror it so the
+    # report header reflects the real stage count instead of the "" fallback.
+    from src.analysis.base_strategy import load_strategy_config
+    from src.analysis.wyckoff_vpa import diagnose_stage_count, wyckoff_badge_kr
+
+    vpa_params = load_strategy_config()["strategies"]["wyckoff_spring"]["params"]["vpa"]
+    pseudo.wyckoff_badge = wyckoff_badge_kr(diagnose_stage_count(df_ind, vpa_params))
+
+    # Entry band + ATR reference stop: scan path computes these (main.py), so the
+    # report shows a real 추격 금지선 and a chandelier-style 참고 손절 instead of
+    # collapsing the 매수 범위 onto the current price. /analyze fires no strategy,
+    # so the stop is informational (ANALYZE_REF_ATR_K), never a live level.
+    from src.analysis.grading import entry_zone_top
+    from src.risk.exit_engine import atr_trailing_stop
+
+    last_atr = last["atr14"]
+    atr = float(last_atr) if last_atr == last_atr and last_atr > 0 else None
+    pseudo.entry_zone_top = entry_zone_top(pseudo.price, atr)
+    if atr is not None:
+        pseudo.suggested_stop_loss = round(
+            atr_trailing_stop(pseudo.price, atr, settings.ANALYZE_REF_ATR_K), 4
+        )
+        pseudo.exit_mode = "atr_reference"
     from src.backtest.confidence import ConfidenceReport
 
     conf_for_report = best_conf or ConfidenceReport(

@@ -187,7 +187,13 @@ def build_report(
         plan={
             "entry": zone,
             "stop": _fmt_price(signal.suggested_stop_loss, market),
-            "stop_mode": "ATR 추적" if signal.exit_mode == "atr_trailing" else "고정",
+            "stop_mode": (
+                "ATR 추적"
+                if signal.exit_mode == "atr_trailing"
+                else "ATR 참고"
+                if signal.exit_mode == "atr_reference"
+                else "고정"
+            ),
             "target": target,
             "kelly": kelly_hint,
             "correlation_warning": correlation_warning,
