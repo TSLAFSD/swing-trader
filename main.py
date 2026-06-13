@@ -269,9 +269,12 @@ def _weekly(publish: bool = True) -> None:
     restore_from_data_branch()
     load_us_universe(refresh=True)  # re-validate the cached fallback list
 
+    from src.risk.trade_ledger import discipline_summary_kr, load_closed_trades
+
     store = ParquetStore()
     fwd = tracker.forward_returns(store, tracker.load_signals())
     summary = tracker.weekly_summary_kr(fwd)
+    realized = discipline_summary_kr(load_closed_trades())
 
     strategy_ids = [s.strategy_id for s in get_strategies(enabled_only=False)]
     decisions = circuit_breaker.update_all(fwd, strategy_ids)
@@ -282,7 +285,8 @@ def _weekly(publish: bool = True) -> None:
         f"· {sid}: {'게이트 통과' if r.passed else '게이트 미달'}" for sid, r in reports.items()
     ]
     text = (
-        f"{summary}\n\n🔁 주간 재검증 결과 (enabled 변경은 수동 승인 필요):\n" + "\n".join(val_lines)
+        f"{summary}\n\n{realized}\n\n🔁 주간 재검증 결과 (enabled 변경은 수동 승인 필요):\n"
+        + "\n".join(val_lines)
     )
     if cb_lines:
         text += "\n\n🛑 서킷브레이커 발동:\n" + "\n".join(cb_lines)
@@ -307,6 +311,7 @@ def main() -> None:
     add.add_argument("quantity", type=float)
     remove = sub.add_parser("position-remove")
     remove.add_argument("ticker")
+    remove.add_argument("price", nargs="?", type=float, default=None)
     sub.add_parser("positions-report")
     args = parser.parse_args()
     publish = not args.no_publish
@@ -340,8 +345,8 @@ def main() -> None:
             from src.commands.positions_cmd import remove_position
             from src.data.store import restore_from_data_branch
 
-            restore_from_data_branch()  # rebuy state rides the data branch
-            remove_position(args.ticker)
+            restore_from_data_branch()  # rebuy state + trade ledger ride the data branch
+            remove_position(args.ticker, args.price)
             if publish:
                 _publish(True)  # persist the cooldown record
         elif args.command == "positions-report":

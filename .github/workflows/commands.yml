@@ -40,7 +40,13 @@ jobs:
           read -ra A <<< "$ARGS"
           case "$CMD" in
             /add)      python main.py position-add "${A[0]}" "${A[1]}" "${A[2]}" 2>&1 | tee run.log ;;
-            /remove)   python main.py position-remove "${A[0]}" 2>&1 | tee run.log ;;
+            /remove)
+              if [ -n "${A[1]:-}" ]; then
+                python main.py position-remove "${A[0]}" "${A[1]}" 2>&1 | tee run.log
+              else
+                python main.py position-remove "${A[0]}" 2>&1 | tee run.log
+              fi
+              ;;
             /positions) python main.py positions-report 2>&1 | tee run.log ;;
             /scan)     python main.py "scan-${A[0]}" 2>&1 | tee run.log ;;
             /analyze)  python main.py analyze "${A[0]}" 2>&1 | tee run.log ;;

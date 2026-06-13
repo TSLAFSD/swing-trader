@@ -137,23 +137,98 @@ def add_position(ticker: str, price: float, quantity: float) -> None:
     )
 
 
-def remove_position(ticker: str) -> None:
-    """/remove {ticker} — full reset; ticker rejoins the universe (+cooldown)."""
+def _latest_close(ticker: str, market: str) -> float | None:
+    """Latest close from stored data; fetches the ticker when absent (best-effort)."""
+    try:
+        from datetime import timedelta
+
+        from src.data.store import ParquetStore
+
+        df = ParquetStore().load(market, tickers=[ticker])
+        if df.empty:
+            start = date.today() - timedelta(days=14)
+            if market == "us":
+                from src.data.us_fetcher import fetch_single_us
+
+                df = fetch_single_us(ticker, start=start)
+            else:
+                from src.data.kr_fetcher import fetch_kr_ohlcv
+
+                df, _ = fetch_kr_ohlcv([ticker], start=start)
+        if df is None or df.empty:
+            return None
+        return float(df.sort_values("date")["close"].iloc[-1])
+    except Exception:
+        logger.exception("latest-close lookup failed for %s", ticker)
+        return None
+
+
+def _record_exit(match: dict, exit_price: float | None) -> str:
+    """Append the closed trade to the ledger; return a Korean realized-P/L note.
+
+    When no fill price is supplied, the latest close is used and flagged as an
+    estimate. Returns "" (no note) when no price can be obtained.
+    """
+    from src.risk.trade_ledger import record_closed_trade
+
+    ticker = str(match["ticker"]).upper()
+    market = match["market"]
+    source = "provided"
+    if exit_price is None:
+        exit_price = _latest_close(ticker, market)
+        source = "estimated_close"
+    if exit_price is None:
+        logger.warning("no exit price for %s — ledger record skipped", ticker)
+        return ""
+    entry_date = (
+        match["entry_date"]
+        if isinstance(match["entry_date"], date)
+        else date.fromisoformat(str(match["entry_date"]))
+    )
+    entry_price = float(match["entry_price"])
+    return_pct = (exit_price / entry_price - 1) * 100 if entry_price else float("nan")
+    holding_days = (date.today() - entry_date).days
+    record_closed_trade(
+        {
+            "ticker": ticker, "market": market,
+            "entry_date": str(entry_date), "entry_price": round(entry_price, 4),
+            "quantity": float(match["quantity"]),
+            "stop_loss": match.get("stop_loss"), "take_profit": match.get("take_profit"),
+            "exit_mode": match.get("exit_mode", "fixed"),
+            "exit_date": str(date.today()), "exit_price": round(float(exit_price), 4),
+            "exit_price_source": source,
+            "return_pct": round(return_pct, 2), "holding_days": holding_days,
+            "exit_reason": "manual_remove",
+        }
+    )
+    est = " (추정가)" if source == "estimated_close" else ""
+    return f"\n📈 실현 {return_pct:+.1f}%{est} · {holding_days}일 보유 — 청산 원장 기록됨"
+
+
+def remove_position(ticker: str, exit_price: float | None = None) -> None:
+    """/remove {ticker} [price] — full reset; ticker rejoins the universe (+cooldown).
+
+    Records the closed trade (realized P/L) to the ledger. With no fill price,
+    the latest available close is used, flagged as an estimate.
+    """
     ticker = ticker.upper()
     data = _read_yaml()
-    before = len(data["positions"])
-    data["positions"] = [p for p in data["positions"] if str(p["ticker"]).upper() != ticker]
-    if len(data["positions"]) == before:
+    match = next((p for p in data["positions"] if str(p["ticker"]).upper() == ticker), None)
+    if match is None:
         send_message(f"⚠️ {ticker}은(는) 보유 목록에 없습니다. /positions 로 확인하세요.")
         return
+    data["positions"] = [p for p in data["positions"] if str(p["ticker"]).upper() != ticker]
     _write_yaml(data)
     REBUY_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
     state = json.loads(REBUY_STATE_FILE.read_text(encoding="utf-8")) if REBUY_STATE_FILE.exists() else {}
     state[ticker] = str(date.today())
     REBUY_STATE_FILE.write_text(json.dumps(state, indent=2), encoding="utf-8")
+    realized = _record_exit(match, exit_price)
     cooldown = settings.REBUY_COOLDOWN_DAYS
     note = f"\n재매수 쿨다운 {cooldown}일 적용." if cooldown > 0 else ""
-    send_message(f"✅ 제거 완료: {ticker} — 유니버스로 복귀하여 다시 시그널 대상이 됩니다.{note}")
+    send_message(
+        f"✅ 제거 완료: {ticker} — 유니버스로 복귀하여 다시 시그널 대상이 됩니다.{realized}{note}"
+    )
 
 
 def cooldown_blocked(tickers: list[str], today: date | None = None) -> set[str]:
