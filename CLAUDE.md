@@ -84,6 +84,53 @@ GitHub Actions (cron) + GitHub Pages (reports) + Telegram (alerts) + Cloudflare 
 - **52-week gauge (U1/A-1)** is ALWAYS computed from our own adjusted series;
   external 52w fields render only within FUND_52W_DEVIATION_MAX_PCT of own data.
 
+## Adaptive loop (semi-auto; Lever 1 active, L2–L4 deferred)
+
+- `ADAPTIVE_LOOP_ENABLED` master flag — **False = byte-for-byte baseline**
+  (legacy single-condition circuit breaker; no hardening/hysteresis/safeguard).
+- The loop NEVER predicts price (no ML/RL — does not violate §14). It only
+  SUPPRESSES negative-expectancy strategies using already-realized +10d forward
+  returns from the tracker. Past frequency ≠ future probability — it cannot
+  guarantee returns; every adaptive Telegram notice repeats this disclaimer.
+- **Lever 1 — circuit-breaker hardening (weekly, AUTO):** suspend requires
+  `mean +10d < CB_SUSPEND_RET_THRESHOLD AND win_rate < CB_SUSPEND_WINRATE_FLOOR`
+  (the spec's `OR PF<1` is vacuous: mean<0 ⟺ PF<1, so a low win rate is the real
+  corroboration that avoids suspending on one unlucky window; PF is shown for
+  context). Reactivate only when `mean +10d ≥ CB_REACTIVATE_RET_THRESHOLD`
+  (hysteresis — a higher bar than suspend, prevents flapping). **Single-strategy-
+  silence safeguard:** if every ENABLED strategy would suspend, the best one is
+  kept active so the system never goes fully mute. Suspension is runtime muting
+  (`is_suspended` at scan time), NOT an `enabled` flag change.
+- **Lever 3 — adaptive acceptance cutoff (weekly, AUTO):** adapts the EXISTING
+  send cutoff (`MIN_STRENGTH_SEND`) — NOT a parallel one. `effective_cutoff()`
+  (used by send_filter) returns the adaptive value or, when the loop is off,
+  `MIN_STRENGTH_SEND` (baseline). Nudged ≤ `ACCEPTANCE_CUTOFF_MAX_STEP`/run,
+  clamped to [FLOOR, CEILING]; raises when the just-accepted band loses money,
+  lowers only when the just-rejected band clearly outperforms (so it can't
+  ratchet to the ceiling). State: `data/state/acceptance_cutoff.json`. Applied
+  changes are audited to `data/state/adaptive_audit.json` (JSON array — NOT
+  .jsonl, so it rides the data-branch glob).
+- **L2 (regime weighting) / L4 (approval-gated threshold re-opt) are DEFERRED** —
+  the live realized sample is still too thin to validate them (they would be
+  perpetually "표본 부족"). Do not build/enable without a data-sufficiency review.
+
+## Holdings auto-report + US news (add-on)
+
+- At each CONFIRMED close (kr-close / us-close, NOT the preliminary midday scan),
+  every position in positions.yaml gets a `/analyze`-equivalent HTML report via
+  the SHARED `analyze_cmd.build_analysis_report()` (single source — `/analyze`
+  and holdings call the same builder). The report is a NEUTRAL analysis with NO
+  position data (entry/qty/P&L stay in private Telegram only — §2 rule #4). The
+  held loop reuses the already-computed indicator frame (no re-fetch); the single
+  `publish_reports()` runs AFTER the held loop so signal + holdings reports ship
+  together. Flags: `HOLDINGS_REPORT_ENABLED`, `HOLDINGS_NEWS_ENABLED` (both off =
+  baseline).
+- US holdings ONLY also get news (headlines + links) via `src/data/news.py`
+  (`fetch_us_news`, yfinance `.news`, best-effort — any failure returns [], never
+  blocks a scan; handles both the nested-`content` and old top-level schemas). KR
+  news is out of scope (unreliable coverage). The Telegram holdings block adds the
+  report link + (US) up to `HOLDINGS_NEWS_MAX_ITEMS` headlines.
+
 ## Cron <-> KST map (GitHub Actions, UTC)
 
 | Workflow | KST | UTC cron |

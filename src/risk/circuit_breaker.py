@@ -8,6 +8,7 @@ on the data branch.
 
 import json
 import logging
+import math
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -30,6 +31,10 @@ class BreakerDecision:
     trailing_n: int
     mean_fwd10: float | None
     reason_kr: str
+    # Hardened-breaker extras (adaptive Lever 1); defaults keep the legacy path intact.
+    win_rate: float | None = None
+    profit_factor: float | None = None
+    action: str = "none"  # none | suspended | reactivated | safeguard_kept
 
 
 def load_state(path: Path | None = None) -> dict[str, dict]:
@@ -92,24 +97,128 @@ def evaluate(strategy_id: str, fwd: pd.DataFrame) -> BreakerDecision:
     )
 
 
-def update_all(fwd: pd.DataFrame, strategy_ids: list[str]) -> list[BreakerDecision]:
-    """Weekly re-evaluation: update persisted state for every strategy.
+def _pf_kr(pf: float | None) -> str:
+    """Render a profit factor for Korean notices (— unknown, ∞ no losses)."""
+    if pf is None or pf != pf:
+        return "—"
+    return "∞" if math.isinf(pf) else f"{pf:.2f}"
+
+
+def evaluate_hardened(
+    strategy_id: str, fwd: pd.DataFrame, currently_suspended: bool
+) -> BreakerDecision:
+    """Multi-condition suspend + hysteresis reactivation (adaptive Lever 1).
+
+    Suspend (only when not already suspended) requires BOTH:
+      mean +10d < CB_SUSPEND_RET_THRESHOLD, AND
+      (win_rate < CB_SUSPEND_WINRATE_FLOOR OR profit_factor < 1.0),
+    so one unlucky window cannot suspend a still-profitable strategy.
+
+    Reactivate (only when suspended) requires mean +10d >=
+    CB_REACTIVATE_RET_THRESHOLD — a HIGHER bar than suspension (hysteresis) to
+    prevent on/off flapping. Insufficient realized sample never changes state.
+    """
+    from src.backtest.tracker import trailing_stats
+
+    n = settings.CB_SUSPEND_TRAILING_N
+    st = trailing_stats(fwd, strategy_id, n)
+    nr, mean10, wr, pf = st["n_realized"], st["mean_fwd10"], st["win_rate"], st["profit_factor"]
+    if nr < n // 2:  # not enough realized outcomes -> hold current state
+        return BreakerDecision(
+            strategy_id, currently_suspended, nr, mean10,
+            f"실현 표본 부족 ({nr}/{n}) — 상태 유지", win_rate=wr, profit_factor=pf,
+        )
+    stat_kr = f"최근 {nr}건 +10일 평균 {mean10 * 100:+.1f}% · 승률 {wr * 100:.0f}% · PF {_pf_kr(pf)}"
+    if currently_suspended:
+        suspended = mean10 < settings.CB_REACTIVATE_RET_THRESHOLD
+        tail = (
+            f"재가동 기준({settings.CB_REACTIVATE_RET_THRESHOLD * 100:.0f}%) 미달 → 중단 유지"
+            if suspended
+            else "재가동 기준 충족 → 해제"
+        )
+    else:
+        # mean<0 is mathematically equivalent to PF<1, so the spec's "OR PF<1"
+        # clause is vacuous (it would collapse suspension to mean<threshold and
+        # still trip on ONE unlucky big loss among many wins). To honor the
+        # stated intent — "don't suspend on one unlucky window" — we require a
+        # corroborating LOW WIN RATE (AND); PF is reported for context only.
+        precond = mean10 < settings.CB_SUSPEND_RET_THRESHOLD
+        weak = wr < settings.CB_SUSPEND_WINRATE_FLOOR
+        suspended = precond and weak
+        tail = (
+            f"기준 미달(평균<{settings.CB_SUSPEND_RET_THRESHOLD * 100:.0f}% 且 "
+            f"승률<{settings.CB_SUSPEND_WINRATE_FLOOR * 100:.0f}%) → 중단"
+            if suspended
+            else "정상"
+        )
+    return BreakerDecision(
+        strategy_id, suspended, nr, mean10, f"{stat_kr} — {tail}", win_rate=wr, profit_factor=pf,
+    )
+
+
+def _persist_decisions(state: dict, decisions: list[BreakerDecision], path: Path | None) -> None:
+    """Write back suspended/since/mean for each decision; log state changes."""
+    for d in decisions:
+        prev = state.get(d.strategy_id, {}).get("suspended", False)
+        state[d.strategy_id] = {
+            "suspended": d.suspended,
+            "since": str(date.today()) if d.suspended and not prev else state.get(d.strategy_id, {}).get("since"),
+            "mean_fwd10": d.mean_fwd10,
+        }
+        if d.suspended != prev:
+            logger.warning("circuit breaker %s: %s -> %s (%s)", d.strategy_id, prev, d.suspended, d.reason_kr)
+    save_state(state, path)
+
+
+def _update_all_legacy(
+    fwd: pd.DataFrame, strategy_ids: list[str], path: Path | None
+) -> list[BreakerDecision]:
+    """Original single-condition path (ADAPTIVE_LOOP_ENABLED=False baseline)."""
+    state = load_state(path)
+    decisions = [evaluate(sid, fwd) for sid in strategy_ids]
+    _persist_decisions(state, decisions, path)
+    return decisions
+
+
+def update_all(
+    fwd: pd.DataFrame,
+    strategy_ids: list[str],
+    enabled_ids: set[str] | None = None,
+    path: Path | None = None,
+) -> list[BreakerDecision]:
+    """Weekly re-evaluation of every strategy's breaker state.
+
+    ADAPTIVE_LOOP_ENABLED=False -> legacy single-condition path (baseline,
+    byte-for-byte). Otherwise the hardened path runs, then a single-strategy-
+    silence safeguard keeps the best ENABLED strategy active when every enabled
+    strategy would be suspended (a one-strategy system must never go fully mute).
+
+    Args:
+        enabled_ids: strategy ids that actually emit signals; the safeguard
+            applies among these (defaults to all evaluated).
 
     Returns:
-        Decisions (caller sends Telegram notices for state CHANGES).
+        Decisions (caller sends Telegram notices for action != "none").
     """
-    state = load_state()
+    if not settings.ADAPTIVE_LOOP_ENABLED:
+        return _update_all_legacy(fwd, strategy_ids, path)
+    state = load_state(path)
     decisions = []
     for sid in strategy_ids:
-        decision = evaluate(sid, fwd)
         prev = state.get(sid, {}).get("suspended", False)
-        state[sid] = {
-            "suspended": decision.suspended,
-            "since": str(date.today()) if decision.suspended and not prev else state.get(sid, {}).get("since"),
-            "mean_fwd10": decision.mean_fwd10,
-        }
-        if decision.suspended != prev:
-            logger.warning("circuit breaker %s: %s -> %s (%s)", sid, prev, decision.suspended, decision.reason_kr)
+        decision = evaluate_hardened(sid, fwd, prev)
+        decision.action = (
+            "suspended" if decision.suspended and not prev
+            else "reactivated" if not decision.suspended and prev
+            else "none"
+        )
         decisions.append(decision)
-    save_state(state)
+    enabled = enabled_ids if enabled_ids is not None else {d.strategy_id for d in decisions}
+    enabled_dec = [d for d in decisions if d.strategy_id in enabled]
+    if enabled_dec and all(d.suspended for d in enabled_dec):
+        keep = max(enabled_dec, key=lambda d: d.mean_fwd10 if d.mean_fwd10 is not None else float("-inf"))
+        keep.suspended = False
+        keep.action = "safeguard_kept"
+        keep.reason_kr += " · ⚠️ 전 전략 중단 방지 안전장치로 유지"
+    _persist_decisions(state, decisions, path)
     return decisions

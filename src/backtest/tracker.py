@@ -136,6 +136,36 @@ def forward_returns(
     return out
 
 
+def trailing_stats(fwd: pd.DataFrame, strategy_id: str, n: int) -> dict:
+    """Realized trailing-window stats for one strategy (adaptive Lever 1).
+
+    Reads ONLY already-realized +10d outcomes (never fresh price). Over the last
+    ``n`` signals with a realized +10d return:
+
+    Returns:
+        {n_realized, mean_fwd10, win_rate, profit_factor}. win_rate/
+        profit_factor are None when no realized outcomes exist; profit_factor is
+        inf when there are wins but no losing trades.
+    """
+    empty = {"n_realized": 0, "mean_fwd10": None, "win_rate": None, "profit_factor": None}
+    if fwd is None or fwd.empty or "strategy_id" not in fwd.columns or "fwd_10d" not in fwd.columns:
+        return empty
+    grp = fwd[fwd["strategy_id"] == strategy_id].sort_values("signal_date").tail(n)
+    realized = pd.to_numeric(grp["fwd_10d"], errors="coerce").dropna()
+    if realized.empty:
+        return empty
+    wins = float((realized > 0).sum())
+    gross_win = float(realized[realized > 0].sum())
+    gross_loss = float(-realized[realized <= 0].sum())
+    profit_factor = (gross_win / gross_loss) if gross_loss > 0 else (float("inf") if wins else 0.0)
+    return {
+        "n_realized": int(len(realized)),
+        "mean_fwd10": float(realized.mean()),
+        "win_rate": wins / len(realized),
+        "profit_factor": profit_factor,
+    }
+
+
 def weekly_summary_kr(fwd: pd.DataFrame, weeks: int = 4) -> str:
     """Korean per-strategy hit-rate summary over the trailing weeks."""
     if fwd.empty:

@@ -168,8 +168,6 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
     result.signals.sort(key=lambda s: s.strength, reverse=True)
 
     tracker.record_signals(result.signals)  # ALL ranked signals (weekly tracking)
-    n_published = publish_reports() if publish else 0
-    logger.info("reports published: %d", n_published)
 
     # Send-stage cutoffs (A-2): reports above were already generated for all.
     from src.notify.send_filter import filter_for_send
@@ -199,6 +197,23 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
         reason, summary = evaluate_position(pos, tdf)
         if summary:
             summary["name"] = names.get(pos.ticker, pos.ticker)
+            # Holdings auto-report (CONFIRMED close only): the same /analyze
+            # report for this ticker — NO position data in it — reusing the
+            # already-computed indicator frame; US holdings also get news.
+            if not preliminary and settings.HOLDINGS_REPORT_ENABLED:
+                from src.commands.analyze_cmd import build_analysis_report
+
+                try:
+                    rpt = build_analysis_report(pos.ticker, market, tdf, store=store, publish=False)
+                    summary["report_url"] = report_url(rpt)
+                except Exception:
+                    logger.exception("holdings report failed for %s", pos.ticker)
+                if settings.HOLDINGS_NEWS_ENABLED and market == "us":
+                    from src.data.news import fetch_us_news
+
+                    summary["news"] = fetch_us_news(
+                        pos.ticker, settings.HOLDINGS_NEWS_MAX_ITEMS, settings.HOLDINGS_NEWS_RECENCY_DAYS
+                    )
             holding_rows.append(summary)
         if reason:
             sell_msgs.append(
@@ -240,6 +255,11 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
     if used_slots >= settings.MAX_POSITION_SLOTS:
         for sig in result.signals:
             sig.tags.append(f"⚠️ 슬롯 가득 ({used_slots}/{settings.MAX_POSITION_SLOTS})")
+
+    # Single publish AFTER holdings reports are generated (signals + holdings),
+    # so every report link below is live before the Telegram message is sent.
+    n_published = publish_reports() if publish else 0
+    logger.info("reports published: %d (signals + holdings)", n_published)
 
     text = messages.scan_message(
         result, urls, conf_labels, preliminary, kr_third, filtered_count=len(send_excluded)
@@ -348,8 +368,33 @@ def _weekly(publish: bool = True) -> None:
         publish_reports()  # push paper.html (merges with existing per-signal reports)
 
     strategy_ids = [s.strategy_id for s in get_strategies(enabled_only=False)]
-    decisions = circuit_breaker.update_all(fwd, strategy_ids)
-    cb_lines = [f"· {d.strategy_id}: {d.reason_kr}" for d in decisions if d.suspended]
+    enabled_ids = {s.strategy_id for s in get_strategies(enabled_only=True)}
+    decisions = circuit_breaker.update_all(fwd, strategy_ids, enabled_ids=enabled_ids)
+    cb_lines = []
+    for d in decisions:
+        if d.action == "suspended":
+            cb_lines.append(f"🛑 {d.strategy_id} 중단: {d.reason_kr}")
+        elif d.action == "reactivated":
+            cb_lines.append(f"🟢 {d.strategy_id} 재가동: {d.reason_kr}")
+        elif d.action == "safeguard_kept":
+            cb_lines.append(f"⚠️ {d.strategy_id} 유지(안전장치): {d.reason_kr}")
+        elif d.suspended:
+            cb_lines.append(f"· {d.strategy_id} 중단 중: {d.reason_kr}")
+
+    # Lever 3: adaptive acceptance cutoff (reuses fwd; persisted + audited).
+    from src.adaptive import audit as adaptive_audit
+    from src.adaptive.cutoff import propose_and_apply
+
+    cutoff_change = propose_and_apply(fwd)
+    cutoff_line = ""
+    if cutoff_change and cutoff_change["changed"]:
+        adaptive_audit.record(
+            "acceptance_cutoff", cutoff_change["old"], cutoff_change["new"], cutoff_change["reason_kr"]
+        )
+        cutoff_line = (
+            f"\n\n📏 수용 컷오프 {cutoff_change['old']:.0f}→{cutoff_change['new']:.0f}: "
+            f"{cutoff_change['reason_kr']}"
+        )
 
     reports = run_validation()
     val_lines = [
@@ -361,7 +406,11 @@ def _weekly(publish: bool = True) -> None:
         + "\n".join(val_lines)
     )
     if cb_lines:
-        text += "\n\n🛑 서킷브레이커 발동:\n" + "\n".join(cb_lines)
+        header = "🔁 서킷브레이커(적응형)" if settings.ADAPTIVE_LOOP_ENABLED else "🛑 서킷브레이커 발동"
+        text += f"\n\n{header}:\n" + "\n".join(cb_lines)
+        if settings.ADAPTIVE_LOOP_ENABLED:
+            text += "\n※ 과거 실현 통계 기반 억제일 뿐 — 미래 수익을 보장하지 않습니다."
+    text += cutoff_line
     _publish(publish)
     telegram.send_message(text)
 

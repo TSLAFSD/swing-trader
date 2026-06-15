@@ -42,6 +42,9 @@ def filter_for_send(
       - final strength >= MIN_STRENGTH_SEND
       - stop width <= MAX_STOP_LOSS_PCT (STOP_TOO_WIDE_MODE: drop | tag)
     """
+    from src.adaptive.cutoff import effective_cutoff
+
+    cutoff = effective_cutoff()  # adaptive (Lever 3) or MIN_STRENGTH_SEND when off
     sendable: list[Signal] = []
     excluded: list[SendDecision] = []
     for sig in signals:
@@ -53,8 +56,8 @@ def filter_for_send(
             pf = conf.profit_factor
             if pf == pf and pf < settings.MIN_PROFIT_FACTOR_SEND:  # NaN-safe
                 reasons.append(f"PF {pf:.2f} < {settings.MIN_PROFIT_FACTOR_SEND}")
-        if sig.strength < settings.MIN_STRENGTH_SEND:
-            reasons.append(f"강도 {sig.strength:.0f} < {settings.MIN_STRENGTH_SEND:.0f}")
+        if sig.strength < cutoff:
+            reasons.append(f"강도 {sig.strength:.0f} < {cutoff:.0f}")
         width = stop_width_pct(sig)
         if width is not None and width > settings.MAX_STOP_LOSS_PCT:
             if settings.STOP_TOO_WIDE_MODE == "tag":

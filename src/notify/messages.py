@@ -130,6 +130,18 @@ def holdings_summary(
             f"· {r['name']}({r['ticker']}) 평단 {_fmt_price(r['entry_price'], market)} | "
             f"현재 {_fmt_price(r['current'], market)} | {r['pnl_pct']:+.1f}%{near_stop}"
         )
+        if r.get("report_url"):
+            lines.append(f"   📄 상세 리포트: {r['report_url']}")
+        # US-only news (headlines + links). r["news"] present (possibly empty)
+        # only for US holdings; KR rows never carry it.
+        news = r.get("news")
+        if news is not None:
+            if news:
+                for item in news:
+                    pub = f" ({item.publisher})" if item.publisher else ""
+                    lines.append(f"   • {item.title}{pub} {item.link}")
+            else:
+                lines.append("   • 최신 뉴스 없음")
     if used_slots is not None and max_slots and used_slots < max_slots and n_signals > 0:
         remain = max_slots - used_slots
         lines.append(f"남은 슬롯 {remain} — 오늘 시그널 중 TOP {min(remain, n_signals)}만 선별 권장")

@@ -62,20 +62,28 @@ def _rs_percentile_vs_universe(df_close, market: str, store: ParquetStore) -> fl
     return float((pd.Series(scores) < own).mean() * 100)
 
 
-def analyze(ticker: str, publish: bool = True) -> None:
-    """Run the deep analysis and deliver report link via Telegram."""
-    ticker = ticker.upper()
-    market = detect_market(ticker)
-    ohlcv = _fetch_ticker(ticker, market)
-    if ohlcv is None or ohlcv.empty:
-        send_message(
-            f"❌ '{ticker}' 종목을 찾을 수 없습니다.\n"
-            f"미국 주식은 티커(예: AAPL), 한국 주식은 6자리 코드(예: 005930)로 입력해주세요."
-        )
-        return
-    df_ind = compute_indicators(ohlcv.sort_values("date").reset_index(drop=True))
+def build_analysis_report(
+    ticker: str, market: str, df_ind, *, store: ParquetStore | None = None, publish: bool = False
+):
+    """Render the /analyze deep-analysis report for ANY ticker from a precomputed
+    indicator frame.
+
+    Contains NO position data (entry/qty/P&L) — identical to the on-demand
+    /analyze report. Single source of truth shared by /analyze and the holdings
+    auto-report; does NOT send Telegram.
+
+    Args:
+        ticker, market: security identity.
+        df_ind: compute_indicators() output (full history, ascending).
+        store: market store for the RS percentile (a fresh one by default).
+        publish: push to gh-pages when True (the holdings flow publishes once
+            itself, so it passes False).
+
+    Returns:
+        Path to the written report.
+    """
+    store = store or ParquetStore()
     last = df_ind.iloc[-1]
-    store = ParquetStore()
 
     # Per-strategy checklist + confidence (every strategy, enabled flag shown).
     checklist: list[str] = []
@@ -160,8 +168,26 @@ def analyze(ticker: str, publish: bool = True) -> None:
     )
     if publish:
         publish_reports()
+    return path
+
+
+def analyze(ticker: str, publish: bool = True) -> None:
+    """Run the deep analysis on demand and deliver the report link via Telegram."""
+    ticker = ticker.upper()
+    market = detect_market(ticker)
+    ohlcv = _fetch_ticker(ticker, market)
+    if ohlcv is None or ohlcv.empty:
+        send_message(
+            f"❌ '{ticker}' 종목을 찾을 수 없습니다.\n"
+            f"미국 주식은 티커(예: AAPL), 한국 주식은 6자리 코드(예: 005930)로 입력해주세요."
+        )
+        return
+    df_ind = compute_indicators(ohlcv.sort_values("date").reset_index(drop=True))
+    path = build_analysis_report(ticker, market, df_ind, publish=publish)
+    last = df_ind.iloc[-1]
     z = last["zscore20"]
     z_txt = f"{z:+.1f}σ" if z == z else "—"
+    regime = get_regime(market, None)
     send_message(
         f"🔍 {ticker} 딥 분석 완료\n"
         f"현재가 기준 z-score {z_txt} · {regime.label_kr}\n"

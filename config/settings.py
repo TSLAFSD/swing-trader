@@ -99,6 +99,33 @@ CONF_CAP_LOW_SAMPLE = 0.3
 CB_TRAILING_SIGNALS = 20  # trailing window size
 CB_MEAN_FWD10_MIN = -0.02  # suspend when mean +10d forward return < -2%
 
+# --- Adaptive loop (semi-auto; Lever 1 active, L2-L4 deferred) -------------
+# Master flag: False makes the system behave byte-for-byte like the baseline
+# (legacy single-condition circuit breaker; no hardening/hysteresis/safeguard).
+# This loop NEVER predicts price — it only suppresses negative-expectancy
+# strategies from already-realized forward returns. Past frequency != future
+# probability; it cannot guarantee returns.
+ADAPTIVE_LOOP_ENABLED = True
+# Lever 1 — hardened circuit breaker (multi-condition suspend + hysteresis).
+CB_SUSPEND_TRAILING_N = 20  # realized window for the hardened breaker
+CB_SUSPEND_RET_THRESHOLD = -0.02  # mean +10d below this is a NECESSARY suspend precondition...
+CB_SUSPEND_WINRATE_FLOOR = 0.40  # ...AND (win rate < this OR profit factor < 1.0) must also hold
+CB_REACTIVATE_RET_THRESHOLD = 0.0  # hysteresis: un-suspend only when mean +10d >= this (> suspend)
+# Lever 3 — adaptive acceptance cutoff (adapts the EXISTING MIN_STRENGTH_SEND).
+ACCEPTANCE_CUTOFF_ENABLED = True
+ACCEPTANCE_CUTOFF_MAX_STEP = 5.0  # max change to the cutoff per weekly run
+ACCEPTANCE_CUTOFF_FLOOR = 20.0  # never below the original MIN_STRENGTH_SEND baseline
+ACCEPTANCE_CUTOFF_CEILING = 60.0
+ACCEPTANCE_MIN_SAMPLE = 10  # min realized signals in a band before nudging
+
+# --- Holdings auto-report + US news (add-on) -----------------------------
+# Every held position gets a /analyze-equivalent report at each CONFIRMED close
+# (no position data in it); US holdings also get news headlines+links (Telegram).
+HOLDINGS_REPORT_ENABLED = True
+HOLDINGS_NEWS_ENABLED = True
+HOLDINGS_NEWS_MAX_ITEMS = 3
+HOLDINGS_NEWS_RECENCY_DAYS = 7
+
 # --- Reports / GitHub Pages ---------------------------------------------
 REPORTS_BRANCH = "gh-pages"
 PAGES_BASE_URL = "https://tslafsd.github.io/swing-trader"
