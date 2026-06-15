@@ -8,3 +8,11 @@ positions:
   stop_loss: 122.3601
   take_profit: null
   exit_mode: atr_trailing
+- ticker: SATL
+  market: us
+  entry_date: '2026-06-15'
+  entry_price: 2.16
+  quantity: 9100.0
+  stop_loss: -0.8417
+  take_profit: null
+  exit_mode: atr_trailing
