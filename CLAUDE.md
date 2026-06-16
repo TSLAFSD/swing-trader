@@ -131,19 +131,28 @@ GitHub Actions (cron) + GitHub Pages (reports) + Telegram (alerts) + Cloudflare 
   news is out of scope (unreliable coverage). The Telegram holdings block adds the
   report link + (US) up to `HOLDINGS_NEWS_MAX_ITEMS` headlines.
 
-## Cron <-> KST map (GitHub Actions, UTC)
+## Cron <-> KST map (Cloudflare Worker cron -> repository_dispatch, UTC)
 
-| Workflow | KST | UTC cron |
-|---|---|---|
-| kr-midday.yml | 평일 12:37 | `37 3 * * 1-5` |
-| kr-close.yml | 평일 15:47 | `47 6 * * 1-5` |
-| us-close.yml | 화–토 07:07 | `7 22 * * 1-5` |
-| us-premarket.yml | 평일 16:37 | `37 7 * * 1-5` |
-| weekly.yml | 일 04:07 | `7 19 * * 6` |
+| Workflow | KST | UTC cron | repository_dispatch type |
+|---|---|---|---|
+| kr-midday.yml | 평일 12:37 | `37 3 * * 1-5` | `cron-kr-midday` |
+| kr-close.yml | 평일 15:47 | `47 6 * * 1-5` | `cron-kr-close` |
+| us-close.yml | 화–토 07:07 | `7 22 * * 1-5` | `cron-us-close` |
+| us-premarket.yml | 평일 16:37 | `37 7 * * 1-5` | `cron-us-premarket` |
+| weekly.yml | 일 04:07 | `7 19 * * 6` | `cron-weekly` |
 
-Minutes shifted +7 off :00/:30 congestion (U7 mitigation — multi-hour lags were
-observed on a fresh repo). Actions cron can still lag; the preliminary scan
-tolerates this by design.
+**Scheduling lives in the Cloudflare Worker, not GitHub.** GitHub-native
+`schedule:` triggers lagged multiple hours on the free tier (lowest priority),
+so they were retired. The crons above now live in `worker/wrangler.toml`
+`[triggers]`; the Worker's `scheduled()` handler maps each cron -> a
+`repository_dispatch` event_type (CRON_EVENTS in worker.js) -> the matching
+workflow, which runs promptly (same punctual path as the Telegram `/commands`).
+**The wrangler.toml crons and worker.js CRON_EVENTS must stay in sync.** Each
+workflow listens on its own `repository_dispatch` type (only the right one
+fires) and keeps `workflow_dispatch:` for manual/fallback runs. If a dispatch
+fails, the Worker DMs the owner on Telegram (the safety net for missed runs).
+The +7-min offsets are vestigial now (no GitHub-cron congestion to dodge) but
+kept so the KST wall-clock times are unchanged.
 
 ## Data-branch convention
 

@@ -1,11 +1,13 @@
-# Weekly maintenance: 일요일 04:07 KST = Saturday 19:07 UTC (+7분 혼잡 회피).
+# Weekly maintenance: 일요일 04:07 KST = Saturday 19:07 UTC. Triggered by the
+# Cloudflare Worker cron (repository_dispatch: cron-weekly) — GitHub-native
+# schedule was retired (multi-hour lag).
 # Strategy re-validation, live-tracking report, circuit-breaker review,
 # universe cache refresh, data compaction (no deletion — retention is forever).
 name: weekly
 
 on:
-  schedule:
-    - cron: "7 19 * * 6"
+  repository_dispatch:
+    types: [cron-weekly]
   workflow_dispatch:
 
 concurrency:

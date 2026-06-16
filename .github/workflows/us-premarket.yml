@@ -1,11 +1,13 @@
-# US Gap Guard (§11.1): 평일 16:37 KST = 07:37 UTC, just before US pre-market (+7분 혼잡 회피).
-# Price re-check ONLY (no signal recomputation, no data-branch writes —
-# hence no concurrency group). Silent when there were no US signals.
+# US Gap Guard (§11.1): 평일 16:37 KST = 07:37 UTC, just before US pre-market.
+# Triggered by the Cloudflare Worker cron (repository_dispatch: cron-us-premarket)
+# — GitHub-native schedule was retired (multi-hour lag). Price re-check ONLY (no
+# signal recomputation, no data-branch writes — hence no concurrency group).
+# Silent when there were no US signals.
 name: us-premarket
 
 on:
-  schedule:
-    - cron: "37 7 * * 1-5"
+  repository_dispatch:
+    types: [cron-us-premarket]
   workflow_dispatch:
 
 jobs:

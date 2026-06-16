@@ -1,10 +1,11 @@
-# KR preliminary scan: 평일 12:37 KST = 03:37 UTC (혼잡 시간대 회피로 +7분 — U7 cron 완화).
-# Signals are tagged 예비(미확정); cron lag 15-30 min is tolerated by design.
+# KR preliminary scan: 평일 12:37 KST = 03:37 UTC. Triggered by the Cloudflare
+# Worker cron (repository_dispatch: cron-kr-midday) — GitHub-native schedule was
+# retired (multi-hour lag). Signals are tagged 예비(미확정).
 name: kr-midday
 
 on:
-  schedule:
-    - cron: "37 3 * * 1-5"
+  repository_dispatch:
+    types: [cron-kr-midday]
   workflow_dispatch:
 
 concurrency:

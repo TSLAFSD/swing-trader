@@ -1,9 +1,15 @@
 /**
- * swing-trader Telegram command webhook (Cloudflare Worker, free tier).
+ * swing-trader Telegram command webhook + scheduler (Cloudflare Worker, free tier).
  *
- * Flow: Telegram -> this Worker -> immediate ack reply (cold-start UX rule:
- * the Actions runner takes 15s-1min to boot, silence feels broken) ->
+ * Command flow: Telegram -> this Worker -> immediate ack reply (cold-start UX
+ * rule: the Actions runner takes 15s-1min to boot, silence feels broken) ->
  * repository_dispatch -> commands.yml executes and replies with results.
+ *
+ * Schedule flow: Cloudflare cron trigger -> this Worker (scheduled handler) ->
+ * repository_dispatch -> the matching scan/weekly workflow. This replaces
+ * GitHub-native `schedule:` triggers, which lagged multiple hours on the free
+ * tier; the API-dispatch path runs promptly. On dispatch failure the owner is
+ * alerted on Telegram (the operational safety net for missed runs).
  *
  * Secrets (wrangler secret put ...):
  *   TELEGRAM_BOT_TOKEN  - same bot token as GitHub Secrets
@@ -42,7 +48,7 @@ async function sendTelegram(env, chatId, text) {
   });
 }
 
-async function dispatch(env, command, args) {
+async function githubDispatch(env, eventType, clientPayload) {
   const resp = await fetch(`https://api.github.com/repos/${REPO}/dispatches`, {
     method: "POST",
     headers: {
@@ -51,13 +57,26 @@ async function dispatch(env, command, args) {
       "User-Agent": "swing-trader-worker",
       "X-GitHub-Api-Version": "2022-11-28",
     },
-    body: JSON.stringify({
-      event_type: "telegram-command",
-      client_payload: { command, args },
-    }),
+    body: JSON.stringify({ event_type: eventType, client_payload: clientPayload }),
   });
   return resp.status === 204;
 }
+
+// Telegram command -> commands.yml (listens on the [telegram-command] type).
+async function dispatch(env, command, args) {
+  return githubDispatch(env, "telegram-command", { command, args });
+}
+
+// Cloudflare cron expression -> the workflow it should wake. Each scan/weekly
+// workflow listens on its own repository_dispatch type (so only the right one
+// fires). Keep these crons identical to wrangler.toml [triggers].
+const CRON_EVENTS = {
+  "37 3 * * 1-5": "cron-kr-midday",
+  "47 6 * * 1-5": "cron-kr-close",
+  "7 22 * * 1-5": "cron-us-close",
+  "37 7 * * 1-5": "cron-us-premarket",
+  "7 19 * * 6": "cron-weekly",
+};
 
 export default {
   async fetch(request, env) {
@@ -100,5 +119,23 @@ export default {
       await sendTelegram(env, chatId, "🚨 GitHub 호출 실패 — Worker의 GITHUB_PAT 설정을 확인하세요.");
     }
     return new Response("ok");
+  },
+
+  async scheduled(controller, env, ctx) {
+    const eventType = CRON_EVENTS[controller.cron];
+    if (!eventType) return; // unmapped cron — ignore rather than guess
+    const ok = await githubDispatch(env, eventType, {
+      trigger: "cloudflare-cron",
+      cron: controller.cron,
+    });
+    if (!ok && env.ALLOWED_CHAT_ID) {
+      ctx.waitUntil(
+        sendTelegram(
+          env,
+          env.ALLOWED_CHAT_ID,
+          `🚨 스케줄 트리거 실패 (${eventType}) — Worker가 GitHub Actions를 깨우지 못했습니다. GITHUB_PAT를 확인하세요.`
+        )
+      );
+    }
   },
 };

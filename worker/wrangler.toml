@@ -2,6 +2,17 @@ name = "swing-trader-bot"
 main = "worker.js"
 compatibility_date = "2026-06-01"
 
+# Cron triggers (UTC) — punctual replacement for GitHub-native schedule:.
+# Keep identical to CRON_EVENTS in worker.js. KST = UTC+9.
+[triggers]
+crons = [
+  "37 3 * * 1-5", # kr-midday    평일 12:37 KST
+  "47 6 * * 1-5", # kr-close     평일 15:47 KST
+  "7 22 * * 1-5", # us-close     화–토 07:07 KST
+  "37 7 * * 1-5", # us-premarket 평일 16:37 KST
+  "7 19 * * 6",   # weekly       일 04:07 KST
+]
+
 # Secrets are NOT stored here — register with:
 #   wrangler secret put TELEGRAM_BOT_TOKEN
 #   wrangler secret put ALLOWED_CHAT_ID

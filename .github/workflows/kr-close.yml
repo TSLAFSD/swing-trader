@@ -1,10 +1,11 @@
-# KR confirmed scan (main): 평일 15:47 KST = 06:47 UTC (+7분 혼잡 회피).
-# NOTE: Actions cron can lag 15-30 min at busy times — acceptable for EOD data.
+# KR confirmed scan (main): 평일 15:47 KST = 06:47 UTC. Triggered by the
+# Cloudflare Worker cron (repository_dispatch: cron-kr-close) — GitHub-native
+# schedule was retired (multi-hour lag); EOD close data is unaffected by timing.
 name: kr-close
 
 on:
-  schedule:
-    - cron: "47 6 * * 1-5"
+  repository_dispatch:
+    types: [cron-kr-close]
   workflow_dispatch:
 
 concurrency:

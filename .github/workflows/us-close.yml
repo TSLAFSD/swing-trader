@@ -1,9 +1,11 @@
-# US confirmed scan (Russell 1000): 화-토 07:07 KST = Mon-Fri 22:07 UTC (+7분 혼잡 회피).
+# US confirmed scan (Russell 1000): 화-토 07:07 KST = Mon-Fri 22:07 UTC.
+# Triggered by the Cloudflare Worker cron (repository_dispatch: cron-us-close) —
+# GitHub-native schedule was retired (multi-hour lag).
 name: us-close
 
 on:
-  schedule:
-    - cron: "7 22 * * 1-5"
+  repository_dispatch:
+    types: [cron-us-close]
   workflow_dispatch:
 
 concurrency:
