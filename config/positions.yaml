@@ -1,4 +1,5 @@
 # Owner's open positions — managed via Telegram /add /remove or by hand.
+# highest_close/current_trailing_sl are pipeline-maintained (U7/G-1).
 positions:
 - ticker: PLTR
   market: us
@@ -9,7 +10,7 @@ positions:
   take_profit: null
   exit_mode: atr_trailing
   highest_close: 134.71
-  current_trailing_sl: 114.9746
+  current_trailing_sl: 115.2936
 - ticker: SATL
   market: us
   entry_date: '2026-06-15'
@@ -26,3 +27,5 @@ positions:
   stop_loss: 13.6494
   take_profit: null
   exit_mode: atr_trailing
+  highest_close: 15.71
+  current_trailing_sl: 13.7317
