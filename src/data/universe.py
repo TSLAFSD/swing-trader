@@ -2,7 +2,8 @@
 
 US: Russell 1000 — iShares IWB holdings CSV (primary), Wikipedia (fallback),
     committed cache CSV (last resort; a refresh failure must never kill a scan).
-KR: KOSPI + KOSDAQ via FinanceDataReader, excluding 관리종목/거래정지.
+KR: KOSPI + KOSDAQ via FinanceDataReader (primary), pykrx (fallback),
+    committed cache CSV (last resort), excluding 관리종목/거래정지.
 
 Price/volume pre-scan filters are applied later, after OHLCV is available.
 """
@@ -90,12 +91,8 @@ def load_us_universe(refresh: bool = True) -> pd.DataFrame:
     raise RuntimeError("US universe refresh failed and no cache exists")
 
 
-def load_kr_universe() -> pd.DataFrame:
-    """Load KOSPI + KOSDAQ listings, excluding 관리종목/거래정지.
-
-    Returns:
-        DataFrame[ticker, name, market] where market is KOSPI or KOSDAQ.
-    """
+def _kr_listing_from_fdr() -> pd.DataFrame:
+    """KOSPI + KOSDAQ listings via FinanceDataReader StockListing → [ticker, name, market]."""
     import FinanceDataReader as fdr
 
     frames = []
@@ -104,18 +101,97 @@ def load_kr_universe() -> pd.DataFrame:
         listing = listing.rename(columns={"Code": "ticker", "Name": "name"})
         listing["market"] = market
         frames.append(listing[["ticker", "name", "market"]])
-    universe = pd.concat(frames, ignore_index=True)
-    universe["ticker"] = universe["ticker"].astype(str).str.zfill(6)
+    return pd.concat(frames, ignore_index=True)
 
-    # 관리종목 exclusion. 거래정지 has no dedicated listing — halted tickers are
-    # dropped later by the data-level "has a bar on the latest trading day" filter.
-    excluded: set[str] = set()
+
+def _kr_listing_from_pykrx() -> pd.DataFrame:
+    """KOSPI + KOSDAQ listings via pykrx → [ticker, name, market].
+
+    pykrx hits a different KRX endpoint than FDR, so it can succeed when FDR's
+    market-cap listing is down. On its own failures pykrx returns an empty frame
+    (a swallowed exception), so an emptiness check is required.
+    """
+    from pykrx import stock
+    from pykrx.stock import krx
+
+    day = stock.get_nearest_business_day_in_a_week()
+    frames = []
+    for market in ("KOSPI", "KOSDAQ"):
+        names = krx.get_market_ticker_and_name(day, market)  # Series: index=ticker, value=name
+        if names is None or len(names) == 0:
+            raise ValueError(f"pykrx returned no {market} listing for {day}")
+        frames.append(
+            pd.DataFrame(
+                {"ticker": names.index.astype(str), "name": names.to_numpy(), "market": market}
+            )
+        )
+    return pd.concat(frames, ignore_index=True)
+
+
+def _kr_administrative_codes() -> set[str]:
+    """관리종목 codes to exclude (best-effort; empty set if the listing is unavailable).
+
+    거래정지 has no dedicated listing — halted tickers are dropped later by the
+    data-level "has a bar on the latest trading day" filter.
+    """
     try:
+        import FinanceDataReader as fdr
+
         admin = fdr.StockListing("KRX-ADMINISTRATIVE")
-        excluded = set(admin["Symbol"].astype(str).str.zfill(6))
-        logger.info("kr universe: %d 관리종목 to exclude", len(excluded))
+        codes = set(admin["Symbol"].astype(str).str.zfill(6))
+        logger.info("kr universe: %d 관리종목 to exclude", len(codes))
+        return codes
     except Exception:
         logger.exception("kr universe: 관리종목 list unavailable — continuing without it")
+        return set()
+
+
+def load_kr_universe(refresh: bool = True) -> pd.DataFrame:
+    """Load KOSPI + KOSDAQ listings, excluding 관리종목/거래정지.
+
+    Mirrors the US loader's resilience: FDR (primary), pykrx (independent KRX
+    endpoint), then the committed cache CSV (last resort). KRX intermittently
+    blocks/throttles cloud IPs, so a refresh failure must never kill a scan; on
+    a successful refresh the cache is rewritten so it stays fresh.
+
+    Args:
+        refresh: If False, serve the cache directly without hitting KRX.
+
+    Returns:
+        DataFrame[ticker, name, market] where market is KOSPI or KOSDAQ.
+
+    Raises:
+        RuntimeError: If refresh fails AND no cache exists.
+    """
+    cache: Path = settings.KR_UNIVERSE_CACHE_FILE
+    universe: pd.DataFrame | None = None
+    if refresh:
+        for source_name, loader in [
+            ("fdr", _kr_listing_from_fdr),
+            ("pykrx", _kr_listing_from_pykrx),
+        ]:
+            try:
+                df = loader()
+                df["ticker"] = df["ticker"].astype(str).str.zfill(6)
+                df = df.dropna(subset=["ticker", "name"]).drop_duplicates("ticker").reset_index(drop=True)
+                if len(df) < settings.KR_UNIVERSE_MIN_TICKERS:
+                    raise ValueError(f"only {len(df)} tickers parsed — refusing")
+                cache.parent.mkdir(parents=True, exist_ok=True)
+                df.to_csv(cache, index=False)
+                logger.info("kr universe: %d tickers from %s (cache updated)", len(df), source_name)
+                universe = df
+                break
+            except Exception:
+                logger.exception("kr universe: %s source failed", source_name)
+    if universe is None:
+        if cache.exists():
+            universe = pd.read_csv(cache, dtype={"ticker": str})
+            universe["ticker"] = universe["ticker"].astype(str).str.zfill(6)
+            logger.warning("kr universe: serving CACHED list (%d tickers)", len(universe))
+        else:
+            raise RuntimeError("KR universe refresh failed and no cache exists")
+
+    excluded = _kr_administrative_codes()
     before = len(universe)
     universe = universe[~universe["ticker"].isin(excluded)].reset_index(drop=True)
     logger.info("kr universe: %d tickers (%d excluded)", len(universe), before - len(universe))

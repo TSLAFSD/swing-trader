@@ -325,7 +325,7 @@ def _weekly(publish: bool = True) -> None:
     from src.backtest import tracker
     from src.backtest.run_validation import run as run_validation
     from src.data.store import ParquetStore
-    from src.data.universe import load_us_universe
+    from src.data.universe import load_kr_universe, load_us_universe
     from src.notify import telegram
     from src.risk import circuit_breaker
 
@@ -333,6 +333,7 @@ def _weekly(publish: bool = True) -> None:
 
     restore_from_data_branch()
     load_us_universe(refresh=True)  # re-validate the cached fallback list
+    load_kr_universe(refresh=True)  # ditto for KR (refreshes config/cache/kr_universe.csv)
 
     from src.risk.trade_ledger import discipline_summary_kr, load_closed_trades
 

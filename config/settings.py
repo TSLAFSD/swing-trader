@@ -29,6 +29,8 @@ US_MIN_AVG_DOLLAR_VOLUME = 5_000_000.0  # 20-day avg daily trading value, USD
 # --- Universe: KR ------------------------------------------------------
 KR_MIN_PRICE = 1_000.0  # KRW
 KR_MIN_AVG_TRADING_VALUE = 1_000_000_000.0  # 20-day avg daily trading value, KRW (10억)
+KR_UNIVERSE_CACHE_FILE = CACHE_DIR / "kr_universe.csv"  # committed fallback; KRX blocks some cloud IPs
+KR_UNIVERSE_MIN_TICKERS = 1_500  # sanity floor: KOSPI+KOSDAQ is ~2,600 names
 
 # --- Fetchers ----------------------------------------------------------
 US_BATCH_SIZE = 50
