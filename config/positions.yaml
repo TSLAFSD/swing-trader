@@ -10,7 +10,7 @@ positions:
   take_profit: null
   exit_mode: atr_trailing
   highest_close: 134.71
-  current_trailing_sl: 114.6727
+  current_trailing_sl: 115.0839
 - ticker: AAL
   market: us
   entry_date: '2026-06-16'
@@ -19,8 +19,8 @@ positions:
   stop_loss: 13.6494
   take_profit: null
   exit_mode: atr_trailing
-  highest_close: 16.08
-  current_trailing_sl: 14.082
+  highest_close: 16.14
+  current_trailing_sl: 14.1572
 - ticker: SATL
   market: us
   entry_date: '2026-06-18'
