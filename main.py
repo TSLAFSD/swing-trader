@@ -248,6 +248,13 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
             paper["n_opened"], len(paper["closed"]), paper["open_total"],
         )
 
+    # PWA feed: neutral watchlist of the alerted signals + virtual paper +
+    # system state. Built BEFORE _publish so data/app/feed.json rides the
+    # data-branch push (no publisher/store change — picked up by the *.json glob).
+    from src.report.feed import build_feed
+
+    build_feed(result.signals, urls, kr_markets)
+
     _publish(publish)
 
     # U7/G-2: slot accounting (capital-level, across both markets).
@@ -412,6 +419,11 @@ def _weekly(publish: bool = True) -> None:
         if settings.ADAPTIVE_LOOP_ENABLED:
             text += "\n※ 과거 실현 통계 기반 억제일 뿐 — 미래 수익을 보장하지 않습니다."
     text += cutoff_line
+    # Refresh the PWA feed's paper + system snapshot (signals untouched) before
+    # the data-branch push, so the app reflects the weekly adaptive decisions.
+    from src.report.feed import build_feed
+
+    build_feed()
     _publish(publish)
     telegram.send_message(text)
 

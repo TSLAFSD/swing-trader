@@ -67,6 +67,114 @@ async function dispatch(env, command, args) {
   return githubDispatch(env, "telegram-command", { command, args });
 }
 
+// ---------------------------------------------------------------------------
+// Quote proxy (GET /quote?symbols=AAPL,005930.KS) for the PWA.
+//
+// Keyless: proxies Yahoo's public /v8 chart endpoint (a User-Agent header is
+// MANDATORY — Yahoo returns 429 without one). No API key ever touches the
+// client. Read-only market data only; the trading commands above are unaffected.
+// The PWA's primary metric is feed-recommendation-price vs current price, so the
+// client only needs `price` here; prevClose/changePct are best-effort extras.
+// ---------------------------------------------------------------------------
+const QUOTE_TTL = 45; // seconds — short cache to spare Yahoo + the free quota
+const YF_UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
+  "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0 Safari/537.36";
+
+function corsHeaders() {
+  return {
+    "Access-Control-Allow-Origin": "*", // public read-only quotes
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+}
+
+async function fetchYahooChart(symbol) {
+  const url =
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}` +
+    `?range=1d&interval=1d`;
+  let resp;
+  try {
+    resp = await fetch(url, {
+      headers: { "User-Agent": YF_UA, Accept: "application/json" },
+      cf: { cacheTtl: QUOTE_TTL, cacheEverything: true },
+    });
+  } catch (e) {
+    return { error: "fetch_failed" };
+  }
+  if (!resp.ok) return { error: `yahoo_${resp.status}` };
+  let data;
+  try {
+    data = await resp.json();
+  } catch {
+    return { error: "parse_failed" };
+  }
+  const m = data?.chart?.result?.[0]?.meta;
+  if (!m || m.regularMarketPrice == null) return { error: "no_data" };
+  const price = m.regularMarketPrice;
+  const prev = m.chartPreviousClose ?? m.previousClose ?? null;
+  const changePct = prev ? ((price - prev) / prev) * 100 : null;
+  let marketOpen = null;
+  const reg = m.currentTradingPeriod?.regular;
+  if (reg && reg.start != null && reg.end != null) {
+    const now = Math.floor(Date.now() / 1000);
+    marketOpen = now >= reg.start && now <= reg.end;
+  }
+  return {
+    price,
+    prevClose: prev,
+    changePct,
+    currency: m.currency ?? null,
+    name: m.shortName ?? m.longName ?? null,
+    instrumentType: m.instrumentType ?? null,
+    marketTime: m.regularMarketTime ?? null,
+    marketOpen,
+  };
+}
+
+// Resolve a client symbol to a Yahoo symbol. Bare 6-digit codes are Korean:
+// try KOSPI (.KS) then KOSDAQ (.KQ), preferring an actual EQUITY match (a
+// KOSDAQ code can otherwise hit a stale .KS fund). Already-suffixed / US symbols
+// pass through. Result is keyed by the ORIGINAL input the client sent.
+async function yahooQuote(inputSymbol) {
+  const candidates = /^\d{6}$/.test(inputSymbol)
+    ? [`${inputSymbol}.KS`, `${inputSymbol}.KQ`]
+    : [inputSymbol];
+  let fallback = null;
+  for (const sym of candidates) {
+    const r = await fetchYahooChart(sym);
+    if (r.error) continue;
+    const out = { symbol: inputSymbol, yahooSymbol: sym, ...r };
+    if (candidates.length === 1 || r.instrumentType === "EQUITY") return out;
+    fallback = fallback ?? out; // non-equity match — keep only if nothing better
+  }
+  return fallback ?? { symbol: inputSymbol, error: "no_data" };
+}
+
+async function handleQuote(request) {
+  const url = new URL(request.url);
+  const symbols = (url.searchParams.get("symbols") || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .slice(0, 60); // cap batch size
+  const headers = {
+    ...corsHeaders(),
+    "Content-Type": "application/json",
+    "Cache-Control": `public, max-age=${QUOTE_TTL}`,
+  };
+  if (symbols.length === 0) {
+    return new Response(JSON.stringify({ error: "no symbols" }), { status: 400, headers });
+  }
+  const results = await Promise.all([...new Set(symbols)].map(yahooQuote));
+  const quotes = {};
+  for (const r of results) quotes[r.symbol] = r;
+  return new Response(
+    JSON.stringify({ quotes, generated: new Date().toISOString() }),
+    { headers }
+  );
+}
+
 // Cloudflare cron expression -> the workflow it should wake. Each scan/weekly
 // workflow listens on its own repository_dispatch type (so only the right one
 // fires). Keep these crons identical to wrangler.toml [triggers].
@@ -80,6 +188,15 @@ const CRON_EVENTS = {
 
 export default {
   async fetch(request, env) {
+    const url = new URL(request.url);
+    // PWA quote proxy (keyless Yahoo passthrough) + CORS preflight.
+    if (request.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders() });
+    }
+    if (request.method === "GET" && url.pathname === "/quote") {
+      return handleQuote(request);
+    }
+    // Everything below is the Telegram webhook (POST to /).
     if (request.method !== "POST") return new Response("ok");
     let update;
     try {
