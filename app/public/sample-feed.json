@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-06-22T07:10:00+09:00",
+  "signals": [
+    {
+      "signal_date": "2026-06-20",
+      "ticker": "AAPL",
+      "name": "Apple Inc.",
+      "market": "us",
+      "strategy_id": "breakout",
+      "strategy_name": "돌파",
+      "strength": 86.0,
+      "grade": "A",
+      "grade_value": 81.0,
+      "confidence": 0.74,
+      "regime_factor": 0.95,
+      "price": 295.95,
+      "entry_zone_top": 301.5,
+      "stop_loss": 281.0,
+      "take_profit": 332.0,
+      "exit_mode": "atr_trailing",
+      "wyckoff_badge": "🟢 매집권",
+      "reason": "전고점 돌파 + 거래량 회복, 20일선 지지 확인",
+      "tags": ["RS 상위 18%"],
+      "contrarian": ["RSI14 > 70"],
+      "report_url": "https://tslafsd.github.io/swing-trader/sample.html"
+    },
+    {
+      "signal_date": "2026-06-19",
+      "ticker": "NVDA",
+      "name": "NVIDIA Corp",
+      "market": "us",
+      "strategy_id": "wyckoff_spring",
+      "strategy_name": "와이코프 스프링",
+      "strength": 71.0,
+      "grade": "B",
+      "grade_value": 66.0,
+      "confidence": 0.61,
+      "regime_factor": 0.9,
+      "price": 168.4,
+      "entry_zone_top": 172.0,
+      "stop_loss": 159.0,
+      "take_profit": 190.0,
+      "exit_mode": "atr_trailing",
+      "wyckoff_badge": "🟡 관찰",
+      "reason": "저점 재테스트 후 저거래량 스프링",
+      "tags": [],
+      "contrarian": ["close<SMA200"],
+      "report_url": null
+    },
+    {
+      "signal_date": "2026-06-20",
+      "ticker": "005930",
+      "name": "삼성전자",
+      "market": "kr",
+      "strategy_id": "breakout",
+      "strategy_name": "돌파",
+      "strength": 78.0,
+      "grade": "A",
+      "grade_value": 76.0,
+      "confidence": 0.69,
+      "regime_factor": 1.0,
+      "price": 354000,
+      "entry_zone_top": 360000,
+      "stop_loss": 338000,
+      "take_profit": 398000,
+      "exit_mode": "atr_trailing",
+      "wyckoff_badge": "🟢 매집권",
+      "reason": "박스권 상단 돌파, 외국인 순매수 전환",
+      "tags": ["RS 상위 25%"],
+      "contrarian": [],
+      "report_url": "https://tslafsd.github.io/swing-trader/sample.html"
+    },
+    {
+      "signal_date": "2026-05-12",
+      "ticker": "035720",
+      "name": "카카오",
+      "market": "kr",
+      "strategy_id": "breakout",
+      "strategy_name": "돌파",
+      "strength": 64.0,
+      "grade": "C",
+      "grade_value": 58.0,
+      "confidence": 0.52,
+      "regime_factor": 0.85,
+      "price": 41250,
+      "entry_zone_top": 42000,
+      "stop_loss": 39000,
+      "take_profit": 47000,
+      "exit_mode": "fixed",
+      "wyckoff_badge": "⚪ 해당 없음",
+      "reason": "단기 반등 시도 (표본 부족 — 참고용)",
+      "tags": [],
+      "contrarian": ["volume<0.7×VolMA20", "SMA60 slope down"],
+      "report_url": null
+    }
+  ],
+  "paper": {
+    "summary": {
+      "start_equity": 10000.0,
+      "current_equity": 10840.0,
+      "total_return_pct": 8.4,
+      "realized_return_pct": 6.1,
+      "win_rate": 0.58,
+      "profit_factor": 1.72,
+      "max_drawdown_pct": -4.3,
+      "n_closed": 12,
+      "n_open": 3,
+      "avg_holding": 7.4,
+      "best": { "ticker": "AAPL", "return_pct": 14.2 },
+      "worst": { "ticker": "035720", "return_pct": -6.8 },
+      "period_start": "2026-04-02",
+      "period_end": "2026-06-20"
+    },
+    "equity_curve": [
+      { "date": "2026-04-10", "equity": 10120.0, "drawdown_pct": 0.0 },
+      { "date": "2026-04-24", "equity": 9980.0, "drawdown_pct": -1.4 },
+      { "date": "2026-05-08", "equity": 10310.0, "drawdown_pct": 0.0 },
+      { "date": "2026-05-22", "equity": 10180.0, "drawdown_pct": -1.3 },
+      { "date": "2026-06-05", "equity": 10560.0, "drawdown_pct": 0.0 },
+      { "date": "2026-06-19", "equity": 10840.0, "drawdown_pct": 0.0 }
+    ],
+    "by_grade": [
+      { "key": "A", "n": 7, "win_rate": 0.71, "avg_return": 4.9 },
+      { "key": "B", "n": 4, "win_rate": 0.5, "avg_return": 1.2 },
+      { "key": "C", "n": 1, "win_rate": 0.0, "avg_return": -6.8 }
+    ],
+    "open": [],
+    "recent_closed": [
+      { "ticker": "AAPL", "market": "us", "grade": "A", "exit_date": "2026-06-12", "return_pct": 14.2, "holding_days": 9, "exit_reason": "목표가 도달" },
+      { "ticker": "MSFT", "market": "us", "grade": "A", "exit_date": "2026-06-05", "return_pct": 5.1, "holding_days": 6, "exit_reason": "추적 손절" },
+      { "ticker": "035720", "market": "kr", "grade": "C", "exit_date": "2026-05-28", "return_pct": -6.8, "holding_days": 11, "exit_reason": "손절가 도달" }
+    ]
+  },
+  "system": {
+    "adaptive_loop_enabled": true,
+    "min_strength_send": 20.0,
+    "effective_cutoff": 22.0,
+    "enabled_strategies": [{ "strategy_id": "breakout", "name": "돌파" }],
+    "recent_audit": [
+      {
+        "ts": "2026-06-15T04:12:00+09:00",
+        "lever": "acceptance_cutoff",
+        "old": 20.0,
+        "new": 22.0,
+        "trigger": "수용 밴드 −0.3% < 거부 밴드 +1.8% — 컷오프 상향"
+      }
+    ]
+  }
+}

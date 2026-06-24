@@ -171,6 +171,17 @@ PAPER_SCHEMA_VERSION = 1
 PAPER_FEEDBACK_MIN_SAMPLE = 10  # min rows before a feedback suggestion is trusted
 PAPER_FEEDBACK_FILE = PAPER_DIR / "feedback.json"  # machine-readable findings (Claude/P-C)
 
+# --- PWA feed (data/app/feed.json) -------------------------------------
+# Single JSON the iPhone PWA consumes (recommendation watchlist + virtual paper
+# portfolio + adaptive system state). Rides the orphan `data` branch via the
+# *.json glob; fetched by the PWA over raw.githubusercontent.com. NEUTRAL:
+# never carries owner positions / entries / quantities / P&L (§2 rule #4).
+FEED_DIR = DATA_ROOT / "app"
+FEED_FILE = FEED_DIR / "feed.json"
+FEED_RETENTION_DAYS = 30  # drop signals older than this (swing horizon 3-20d)
+FEED_MAX_SIGNALS = 300  # hard cap on cards carried in the feed
+FEED_SCHEMA_VERSION = 1
+
 # --- Telegram (send-only; secrets via env) -----------------------------
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")

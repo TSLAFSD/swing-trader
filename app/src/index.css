@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+/* ───────────────────────── Design tokens ─────────────────────────
+   Carried over from the swing-trader HTML reports for visual parity,
+   extended for the app surface. Trading-terminal-meets-editorial dark. */
+@theme {
+  --color-bg: #0b0e13;
+  --color-bg2: #0d1117;
+  --color-card: #141922;
+  --color-card2: #1a2130;
+  --color-line: #222a36;
+  --color-line2: #2c3647;
+  --color-text: #e8edf4;
+  --color-dim: #8b96a5;
+  --color-faint: #5b6776;
+  --color-accent: #5aa2ff;
+  --color-up: #26a69a;
+  --color-down: #ef5350;
+  --color-warn: #e8a23d;
+  --color-gradeA: #26a69a;
+  --color-gradeB: #5aa2ff;
+  --color-gradeC: #e8a23d;
+
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --radius-card: 18px;
+}
+
+/* ───────────────────────── Base ───────────────────────── */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* Atmospheric depth — two soft radial glows over the void, not a flat fill. */
+  background-image:
+    radial-gradient(1100px 680px at 88% -8%, rgba(90, 162, 255, 0.1), transparent 60%),
+    radial-gradient(900px 600px at -10% 8%, rgba(38, 166, 154, 0.07), transparent 55%);
+  background-attachment: fixed;
+  overscroll-behavior-y: none;
+}
+.tnum {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum" 1, "zero" 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* iOS safe areas */
+.pt-safe { padding-top: env(safe-area-inset-top); }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+.top-safe { top: env(safe-area-inset-top); }
+
+/* Hide scrollbars but keep momentum scroll */
+.scroll-y {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.scroll-y::-webkit-scrollbar { display: none; }
+
+/* Card surface */
+.surface {
+  background: linear-gradient(180deg, var(--color-card2) 0%, var(--color-card) 100%);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+}
+.surface-press {
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+.surface-press:active {
+  transform: scale(0.985);
+  border-color: var(--color-line2);
+}
+
+/* Hairline divider that fades at the ends (editorial touch) */
+.rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-line2), transparent);
+}
+
+/* Grade chip glow */
+.chip {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* Pull-to-refresh spinner ring */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin 0.8s linear infinite; }
+
+/* Staggered entrance for cards */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rise { animation: rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Shimmer skeleton */
+@keyframes shimmer { 100% { background-position: 200% 0; } }
+.skeleton {
+  background: linear-gradient(90deg, var(--color-card) 25%, var(--color-card2) 50%, var(--color-card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
