@@ -20,7 +20,7 @@ positions:
   take_profit: null
   exit_mode: atr_trailing
   highest_close: 16.14
-  current_trailing_sl: 14.1572
+  current_trailing_sl: 14.1561
 - ticker: SATL
   market: us
   entry_date: '2026-06-18'
