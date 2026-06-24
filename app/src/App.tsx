@@ -5,6 +5,7 @@ import { TabBar, type Tab } from "./components/TabBar";
 import { DetailView } from "./views/DetailView";
 import { AddTickerSheet } from "./views/AddTicker";
 import { WatchlistView } from "./views/WatchlistView";
+import { UserTickerView } from "./views/UserTickerView";
 import { PortfolioView } from "./views/PortfolioView";
 import { SystemView } from "./views/SystemView";
 import { useFeed, useQuotes } from "./hooks";
@@ -13,6 +14,7 @@ import {
   getHidden,
   getPinned,
   getUserTickers,
+  removeUserTicker,
   toggleHidden as tHide,
   togglePinned as tPin,
   type UserTicker,
@@ -23,6 +25,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("watch");
   const [market, setMarket] = useState<Market>("us");
   const [detail, setDetail] = useState<SignalCard | null>(null);
+  const [userDetail, setUserDetail] = useState<UserTicker | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [userTickers, setUserTickers] = useState<UserTicker[]>(getUserTickers());
   const [pinned, setPinned] = useState<string[]>(getPinned());
@@ -122,6 +125,7 @@ export default function App() {
               pinned={pinnedSet}
               hidden={hiddenSet}
               onOpen={setDetail}
+              onOpenUser={setUserDetail}
             />
           )}
         </PullToRefresh>
@@ -151,6 +155,18 @@ export default function App() {
           if (detail) {
             setHidden(tHide(cardKey(detail)));
             setDetail(null);
+          }
+        }}
+      />
+
+      <UserTickerView
+        u={userDetail}
+        quote={userDetail ? quotes[quoteSymbol(userDetail.ticker)] : undefined}
+        onClose={() => setUserDetail(null)}
+        onRemove={() => {
+          if (userDetail) {
+            setUserTickers(removeUserTicker(userDetail.ticker));
+            setUserDetail(null);
           }
         }}
       />

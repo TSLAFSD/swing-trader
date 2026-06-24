@@ -2,9 +2,9 @@ import { useMemo, useState } from "react";
 import { SignalCardView } from "../components/SignalCard";
 import { Delta } from "../components/ui";
 import { fmtPrice } from "../lib/format";
-import { cardKey, cardSymbol, changeFromRec, isActive, quoteSymbol } from "../lib/signals";
+import { cardKey, cardSymbol, isActive, quoteSymbol } from "../lib/signals";
 import type { UserTicker } from "../lib/storage";
-import type { Market, QuoteMap, SignalCard } from "../types";
+import type { Market, Quote, QuoteMap, SignalCard } from "../types";
 
 export function WatchlistView({
   market,
@@ -14,6 +14,7 @@ export function WatchlistView({
   pinned,
   hidden,
   onOpen,
+  onOpenUser,
 }: {
   market: Market;
   signals: SignalCard[];
@@ -22,6 +23,7 @@ export function WatchlistView({
   pinned: Set<string>;
   hidden: Set<string>;
   onOpen: (c: SignalCard) => void;
+  onOpenUser: (u: UserTicker) => void;
 }) {
   const [showPast, setShowPast] = useState(false);
   const [showHidden, setShowHidden] = useState(false);
@@ -59,7 +61,12 @@ export function WatchlistView({
         <>
           <SectionLabel>내 종목</SectionLabel>
           {myTickers.map((u) => (
-            <UserCard key={u.ticker} u={u} quote={quotes[quoteSymbol(u.ticker)]} />
+            <UserCard
+              key={u.ticker}
+              u={u}
+              quote={quotes[quoteSymbol(u.ticker)]}
+              onOpen={() => onOpenUser(u)}
+            />
           ))}
         </>
       )}
@@ -131,25 +138,38 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function UserCard({ u, quote }: { u: UserTicker; quote?: import("../types").Quote }) {
+function UserCard({ u, quote, onOpen }: { u: UserTicker; quote?: Quote; onOpen: () => void }) {
   const current = quote && !quote.error ? quote.price : undefined;
-  const fakeCard = { price: u.price_at_add } as SignalCard;
-  const chg = current != null && u.price_at_add ? changeFromRec(fakeCard, current) : null;
+  const sinceAdd =
+    current != null && u.price_at_add ? (current / u.price_at_add - 1) * 100 : null;
+  const dayChg = quote && !quote.error ? quote.changePct ?? null : null;
   return (
-    <div className="surface rise p-3.5 flex items-center justify-between">
-      <div>
+    <button onClick={onOpen} className="surface rise surface-press p-3.5 flex items-center justify-between text-left w-full">
+      <div className="min-w-0">
         <div className="flex items-center gap-2">
           <span className="tnum text-[16px] font-bold">{u.ticker}</span>
           <span className="text-[10px]" style={{ color: "var(--color-faint)" }}>
             {u.market.toUpperCase()}
           </span>
+          {quote?.name && (
+            <span className="text-[12px] truncate" style={{ color: "var(--color-dim)" }}>
+              {quote.name}
+            </span>
+          )}
         </div>
         <div className="text-[11px] tnum mt-0.5" style={{ color: "var(--color-faint)" }}>
           {u.added_date} · {u.price_at_add != null ? fmtPrice(u.price_at_add, u.market) : "—"} →{" "}
           {current != null ? fmtPrice(current, u.market) : "시세 대기"}
         </div>
       </div>
-      <Delta v={chg} className="text-[16px] font-bold" />
-    </div>
+      <div className="flex flex-col items-end gap-0.5 shrink-0 pl-2">
+        <Delta v={sinceAdd} className="text-[16px] font-bold" />
+        {dayChg != null && (
+          <span className="text-[10px] flex items-center gap-1" style={{ color: "var(--color-faint)" }}>
+            당일 <Delta v={dayChg} className="text-[11px]" />
+          </span>
+        )}
+      </div>
+    </button>
   );
 }

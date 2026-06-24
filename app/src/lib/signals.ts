@@ -98,3 +98,23 @@ export function gradeColor(grade: string | null): string {
   if (grade === "C") return "var(--color-gradeC)";
   return "var(--color-dim)";
 }
+
+/**
+ * External chart/quote links for a user-watched ticker (no pipeline analysis
+ * exists for arbitrary tickers — these cover the "I want a chart" need). KR uses
+ * the pipeline-resolved Yahoo symbol when available (.KS/.KQ), else assumes .KS;
+ * TradingView prefixes KR codes with the KRX exchange.
+ */
+export function externalLinks(
+  ticker: string,
+  market: Market,
+  yahooSymbol?: string | null
+): { tradingview: string; yahoo: string } {
+  const t = ticker.trim().toUpperCase();
+  const ySym = yahooSymbol ?? (market === "kr" ? `${t}.KS` : t);
+  const tvSym = market === "kr" ? `KRX:${t}` : t;
+  return {
+    tradingview: `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(tvSym)}`,
+    yahoo: `https://finance.yahoo.com/quote/${encodeURIComponent(ySym)}`,
+  };
+}
