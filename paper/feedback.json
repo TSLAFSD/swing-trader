@@ -1,0 +1,22 @@
+{
+  "n_signals": 83,
+  "n_trades": 0,
+  "grade_efficacy": [],
+  "strategy_efficacy": [
+    {
+      "strategy_id": "breakout",
+      "n": 10,
+      "hit": 0.2,
+      "avg": -15.634555503453775
+    }
+  ],
+  "feature_buckets": {},
+  "exit_analysis": {},
+  "suggestions": [
+    {
+      "kind": "suggest",
+      "title": "breakout 적중률 저조",
+      "detail": "10건 적중 20% (<45%) — 재검증/비활성 검토."
+    }
+  ]
+}

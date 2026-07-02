@@ -1,0 +1,38 @@
+[
+  {
+    "trade_id": "7b20d6fd9cab4d749027bfc301a0975a",
+    "signal_date": "2026-06-18",
+    "entry_date": "2026-06-18",
+    "ticker": "CAT",
+    "market": "us",
+    "strategy_id": "breakout",
+    "grade": "A",
+    "grade_value": 70.6,
+    "strength": 53.2,
+    "confidence": 0.8,
+    "regime_factor": 1.0,
+    "entry_rule": "close",
+    "entry_price": 985.8200073242188,
+    "entry_fill": 986.312917,
+    "shares": 2.027754,
+    "cash_allocated": 2000.0,
+    "stop_loss": 884.8181,
+    "take_profit": null,
+    "exit_mode": "atr_trailing",
+    "peak_close": 1064.900024,
+    "mae_pct": -3.7573,
+    "mfe_pct": 8.8901,
+    "last_mark_date": "2026-07-02",
+    "last_close": 963.530029,
+    "unrealized_pct": -2.2611,
+    "rationale_kr": "A등급(점수 71) · breakout · 강도 53 · 신뢰도 0.80",
+    "features": {
+      "prior_high60": 975.64,
+      "adx14": 24.3599,
+      "atr14": 33.6673,
+      "vol_ma20": 2965610.0,
+      "rs_percentile": 90.3
+    },
+    "schema_version": 1
+  }
+]
