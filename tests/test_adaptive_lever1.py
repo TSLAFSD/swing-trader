@@ -111,3 +111,24 @@ class TestRegressionFlagOff:
         decisions = cb.update_all(df, ["breakout"], path=tmp_path / "cb.json")
         assert decisions[0].suspended is True
         assert decisions[0].action == "none"  # legacy path sets no adaptive action
+
+
+class TestTrailingStatsUnrealizedTail:
+    """Regression (2026-07-02): tail(n) BEFORE the realized filter meant the
+    freshest n signals — all still NaN — masked every realized outcome, so the
+    breaker never saw data (state stuck at mean_fwd10=null in production)."""
+
+    def test_recent_unrealized_signals_do_not_mask_realized(self) -> None:
+        # 15 realized losses followed by 25 fresh NaN signals (not yet +10d old).
+        fwd = fwd_df({"breakout": [-0.05] * 15 + [float("nan")] * 25})
+        st = tracker.trailing_stats(fwd, "breakout", 20)
+        assert st["n_realized"] == 15
+        assert st["mean_fwd10"] == pytest.approx(-0.05)
+        assert st["win_rate"] == 0.0
+
+    def test_window_is_last_n_realized(self) -> None:
+        # 30 realized: 25 old wins then 5 recent losses, window n=5 -> losses only.
+        fwd = fwd_df({"breakout": [0.10] * 25 + [-0.02] * 5})
+        st = tracker.trailing_stats(fwd, "breakout", 5)
+        assert st["n_realized"] == 5
+        assert st["mean_fwd10"] == pytest.approx(-0.02)

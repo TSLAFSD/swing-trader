@@ -150,8 +150,11 @@ def trailing_stats(fwd: pd.DataFrame, strategy_id: str, n: int) -> dict:
     empty = {"n_realized": 0, "mean_fwd10": None, "win_rate": None, "profit_factor": None}
     if fwd is None or fwd.empty or "strategy_id" not in fwd.columns or "fwd_10d" not in fwd.columns:
         return empty
-    grp = fwd[fwd["strategy_id"] == strategy_id].sort_values("signal_date").tail(n)
-    realized = pd.to_numeric(grp["fwd_10d"], errors="coerce").dropna()
+    grp = fwd[fwd["strategy_id"] == strategy_id].sort_values("signal_date")
+    # Realized filter BEFORE tail(n): the freshest signals are always still
+    # NaN (+10d not elapsed) and would otherwise mask every realized outcome
+    # (2026-07-02 regression: breaker state stuck at mean_fwd10=null).
+    realized = pd.to_numeric(grp["fwd_10d"], errors="coerce").dropna().tail(n)
     if realized.empty:
         return empty
     wins = float((realized > 0).sum())
