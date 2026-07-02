@@ -114,3 +114,16 @@ class TestBreadth:
         above = compute_indicators(make_ohlcv([100.0] * 70 + [120.0] * 10))
         short = compute_indicators(make_ohlcv([100.0] * 30))  # SMA60 = NaN
         assert breadth_pct({"A": above, "S": short}) == pytest.approx(100.0)
+
+
+class TestVolMa20ZeroDefense:
+    def test_vol_ma20_zero_becomes_nan(self) -> None:
+        # 20+ zero-volume days (illiquid/halted stretch): vol_ma20 must be NaN,
+        # not 0.0 — strategies divide volume/vol_ma20 and 0 would yield inf.
+        df = compute_indicators(make_ohlcv([100.0] * 40, volume=0.0))
+        tail = df["vol_ma20"].iloc[25:]
+        assert tail.isna().all()
+
+    def test_vol_ma20_normal_volume_unchanged(self) -> None:
+        df = compute_indicators(make_ohlcv([100.0] * 40, volume=1000.0))
+        assert df["vol_ma20"].iloc[-1] == pytest.approx(1000.0)

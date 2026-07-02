@@ -113,58 +113,69 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
     urls: dict[str, str] = {}
     conf_labels: dict[str, str] = {}
     confs: dict[str, object] = {}  # ticker -> ConfidenceReport (send filter)
-    for sig in result.signals:
-        df_ind = result.signal_frames.get(sig.ticker)
-        if df_ind is None:
-            continue
-        strategy = strategies.get(sig.strategy_id)
-        if strategy is None:
-            logger.warning("no strategy instance for %s — skipping", sig.strategy_id)
-            continue
-        conf = ticker_confidence(df_ind, strategy, sig.ticker, market)
-        confs[sig.ticker] = conf
-        conf_labels[sig.ticker] = f"{conf.score:.2f}"
-        # Final rank = strength x confidence (re-rank below).
-        sig.strength = round(sig.strength * max(conf.score, 0.1), 1)
+    failed_tickers: list[str] = []
+    for sig in list(result.signals):
+        # Per-ticker guard: one broken ticker must never kill the whole scan
+        # (2026-07-02: a single KR report crash aborted the entire run).
+        try:
+            df_ind = result.signal_frames.get(sig.ticker)
+            if df_ind is None:
+                continue
+            strategy = strategies.get(sig.strategy_id)
+            if strategy is None:
+                logger.warning("no strategy instance for %s — skipping", sig.strategy_id)
+                continue
+            conf = ticker_confidence(df_ind, strategy, sig.ticker, market)
+            confs[sig.ticker] = conf
+            conf_labels[sig.ticker] = f"{conf.score:.2f}"
+            # Final rank = strength x confidence (re-rank below).
+            sig.strength = round(sig.strength * max(conf.score, 0.1), 1)
 
-        # U4 enrichments: grade / Wyckoff badge / entry zone / contrarian list.
-        from src.analysis.grading import composite_grade, contrarian_indicators, entry_zone_top
-        from src.analysis.wyckoff_vpa import diagnose_stage_count, wyckoff_badge_kr
+            # U4 enrichments: grade / Wyckoff badge / entry zone / contrarian list.
+            from src.analysis.grading import composite_grade, contrarian_indicators, entry_zone_top
+            from src.analysis.wyckoff_vpa import diagnose_stage_count, wyckoff_badge_kr
 
-        grade = composite_grade(
-            sig.strength, conf.score,
-            result.regime.downgrade_factor if result.regime else None,
-        )
-        sig.grade, sig.grade_value, sig.grade_basis = grade.letter, grade.value, grade.basis_kr
-        sig.confidence = conf.score
-        sig.regime_factor = result.regime.downgrade_factor if result.regime else None
-        vpa_params = load_strategy_config()["strategies"]["wyckoff_spring"]["params"]["vpa"]
-        sig.wyckoff_badge = wyckoff_badge_kr(diagnose_stage_count(df_ind, vpa_params))
-        last_atr = df_ind["atr14"].iloc[-1]
-        sig.entry_zone_top = entry_zone_top(sig.price, None if last_atr != last_atr else float(last_atr))
-        sig.contrarian = contrarian_indicators(df_ind)
-        corr_warn = None
-        if held and held_data is not None and not held_data.empty:
-            closes = {sig.ticker: df_ind["close"]}
-            for t, grp in held_data.groupby("ticker"):
-                closes[t] = grp.sort_values("date")["close"].reset_index(drop=True)
-            corr_warn = correlation_warning(sig.ticker, closes, held, names)
-            if corr_warn:
-                sig.tags.append(corr_warn)
-        if market == "us":
-            yf_symbol = sig.ticker
-        else:  # KOSPI -> .KS, KOSDAQ -> .KQ
-            suffix = ".KQ" if kr_markets.get(sig.ticker) == "KOSDAQ" else ".KS"
-            yf_symbol = f"{sig.ticker}{suffix}"
-        fund = fetch_fundamentals(sig.ticker, yf_symbol=yf_symbol, market=market)
-        path = build_report(
-            sig, df_ind, conf, fund,
-            regime_label=result.regime.label_kr if result.regime else "—",
-            downgraded=bool(result.regime and result.regime.weak),
-            kelly_hint=kelly_hint_kr(conf) if conf.n_trades >= settings.MIN_SAMPLE_SEND else None,
-            correlation_warning=corr_warn,
-        )
-        urls[sig.ticker] = report_url(path)
+            grade = composite_grade(
+                sig.strength, conf.score,
+                result.regime.downgrade_factor if result.regime else None,
+            )
+            sig.grade, sig.grade_value, sig.grade_basis = grade.letter, grade.value, grade.basis_kr
+            sig.confidence = conf.score
+            sig.regime_factor = result.regime.downgrade_factor if result.regime else None
+            vpa_params = load_strategy_config()["strategies"]["wyckoff_spring"]["params"]["vpa"]
+            sig.wyckoff_badge = wyckoff_badge_kr(diagnose_stage_count(df_ind, vpa_params))
+            last_atr = df_ind["atr14"].iloc[-1]
+            sig.entry_zone_top = entry_zone_top(sig.price, None if last_atr != last_atr else float(last_atr))
+            sig.contrarian = contrarian_indicators(df_ind)
+            corr_warn = None
+            if held and held_data is not None and not held_data.empty:
+                closes = {sig.ticker: df_ind["close"]}
+                for t, grp in held_data.groupby("ticker"):
+                    closes[t] = grp.sort_values("date")["close"].reset_index(drop=True)
+                corr_warn = correlation_warning(sig.ticker, closes, held, names)
+                if corr_warn:
+                    sig.tags.append(corr_warn)
+            if market == "us":
+                yf_symbol = sig.ticker
+            else:  # KOSPI -> .KS, KOSDAQ -> .KQ
+                suffix = ".KQ" if kr_markets.get(sig.ticker) == "KOSDAQ" else ".KS"
+                yf_symbol = f"{sig.ticker}{suffix}"
+            fund = fetch_fundamentals(sig.ticker, yf_symbol=yf_symbol, market=market)
+            path = build_report(
+                sig, df_ind, conf, fund,
+                regime_label=result.regime.label_kr if result.regime else "—",
+                downgraded=bool(result.regime and result.regime.weak),
+                kelly_hint=kelly_hint_kr(conf) if conf.n_trades >= settings.MIN_SAMPLE_SEND else None,
+                correlation_warning=corr_warn,
+            )
+            urls[sig.ticker] = report_url(path)
+        except Exception:
+            logger.exception("signal pipeline failed for %s — excluded from this scan", sig.ticker)
+            result.signals.remove(sig)
+            failed_tickers.append(sig.ticker)
+    if failed_tickers:
+        # Surfaced on the health line (anomaly list) — failures must never be silent.
+        result.anomalies.extend(f"{t}(리포트 실패)" for t in failed_tickers)
     result.signals.sort(key=lambda s: s.strength, reverse=True)
 
     tracker.record_signals(result.signals)  # ALL ranked signals (weekly tracking)

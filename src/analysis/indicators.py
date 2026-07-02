@@ -95,7 +95,9 @@ def compute_indicators(df: pd.DataFrame) -> pd.DataFrame:
 
     out["atr14"] = _series(ta.atr(high, low, close, length=14), idx)
     out["obv"] = _series(ta.obv(close, vol), idx)
-    out["vol_ma20"] = _series(ta.sma(vol, length=20), idx)
+    # 0 -> NaN (same defense as zscore20's std): strategies divide by vol_ma20
+    # and a 20-day zero-volume stretch would otherwise produce inf ratios.
+    out["vol_ma20"] = _series(ta.sma(vol, length=20), idx).replace(0.0, np.nan)
 
     # Z-score vs SMA20 — standing column for strategy ② and reports.
     rolling_std20 = close.rolling(20).std(ddof=0)
