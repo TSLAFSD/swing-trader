@@ -28,6 +28,8 @@ def _flatten_batch(raw: pd.DataFrame, tickers: list[str]) -> pd.DataFrame:
             logger.warning("us_fetcher: no data returned for %s", ticker)
             continue
         sub = sub.dropna(subset=["Close"])
+        # Same halted-day defense as kr_fetcher: nonpositive OHLC -> excluded.
+        sub = sub[(sub["Open"] > 0) & (sub["High"] > 0) & (sub["Low"] > 0) & (sub["Close"] > 0)]
         if sub.empty:
             logger.warning("us_fetcher: empty frame for %s", ticker)
             continue

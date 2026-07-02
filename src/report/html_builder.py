@@ -45,9 +45,16 @@ def _own_52w(df_ind: pd.DataFrame) -> tuple[float, float]:
     A-1 defense: yfinance .info served stale quotes for KOSDAQ tickers
     (131290 case: 52w high 90,500 vs actual 282,500) — the position gauge is
     therefore ALWAYS computed from our own data, never external fields.
+
+    Nonpositive bars (halted-day 0-price artifacts from KR sources) are
+    excluded; if no valid bar remains, returns (nan, nan) so downstream
+    comparisons fail closed instead of dividing by zero.
     """
     recent = df_ind.tail(252)
-    return float(recent["high"].max()), float(recent["low"].min())
+    valid = recent[(recent["high"] > 0) & (recent["low"] > 0)]
+    if valid.empty:
+        return float("nan"), float("nan")
+    return float(valid["high"].max()), float(valid["low"].min())
 
 
 def _fundamentals_rows(

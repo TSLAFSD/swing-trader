@@ -29,8 +29,14 @@ _YF_SUFFIX = {"KOSPI": ".KS", "KOSDAQ": ".KQ"}
 
 
 def _canonical(df: pd.DataFrame, ticker: str, source: str) -> pd.DataFrame:
-    """Normalize a per-ticker OHLCV frame to the store's canonical long format."""
+    """Normalize a per-ticker OHLCV frame to the store's canonical long format.
+
+    Drops halted-day artifacts (nonpositive OHLC) — KR sources return 0-price
+    rows for trading halts, which would poison downstream min/max and ratio
+    math (no forward-fill invariant: bad bar -> excluded).
+    """
     df = df.dropna(subset=["close"])
+    df = df[(df["open"] > 0) & (df["high"] > 0) & (df["low"] > 0) & (df["close"] > 0)]
     return pd.DataFrame(
         {
             "ticker": ticker,

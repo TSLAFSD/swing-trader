@@ -97,7 +97,11 @@ class ParquetStore:
         glob = str(self._market_dir(market) / "*.parquet")
         if not list(self._market_dir(market).glob("*.parquet")):
             return pd.DataFrame(columns=CANONICAL_COLUMNS)
-        conditions, params = [], []
+        # Halted-day defense: 0-price rows archived before the fetcher-level
+        # filter existed must never reach indicators/reports (min/max & ratio
+        # math would divide by zero). Same invariant: bad bar -> excluded.
+        conditions: list[str] = ["open > 0 AND high > 0 AND low > 0 AND close > 0"]
+        params: list = []
         if tickers:
             conditions.append(f"ticker IN ({','.join('?' * len(tickers))})")
             params.extend(tickers)
