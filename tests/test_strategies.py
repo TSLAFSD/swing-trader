@@ -185,3 +185,46 @@ class TestWyckoffSpring:
 
 
 # (Confluence merge-layer tests removed in U1/A-4 along with the module.)
+
+
+class TestBreakoutOverheatGuards:
+    """Optional overheat guards (Part B): absent from YAML = baseline parity."""
+
+    def fire_frame(self) -> pd.DataFrame:
+        df = base_frame()
+        # close 61 vs sma20 50 -> ext_atr = 11 ATR, ext_pct = +22%; rsi14 = 50.
+        df.loc[df.index[-1], ["close", "prior_high60", "volume", "adx14", "sma60"]] = [
+            61.0, 60.0, 2_000_000.0, 25.0, 50.0,
+        ]
+        return df
+
+    def cfg_with(self, **extra) -> dict:
+        import copy
+
+        cfg = copy.deepcopy(CFG)
+        cfg["strategies"]["breakout"]["params"].update(extra)
+        return cfg
+
+    def test_baseline_has_exactly_four_conditions(self) -> None:
+        conds = BreakoutStrategy(CFG).conditions(self.fire_frame())
+        assert len(conds) == 4  # byte-for-byte baseline when guards absent
+
+    def test_max_ext_atr_blocks_and_passes(self) -> None:
+        df = self.fire_frame()
+        assert BreakoutStrategy(self.cfg_with(max_ext_atr=5.0)).evaluate(df, "T", "T", "us") is None
+        assert BreakoutStrategy(self.cfg_with(max_ext_atr=15.0)).evaluate(df, "T", "T", "us") is not None
+
+    def test_max_ext_pct_blocks_and_passes(self) -> None:
+        df = self.fire_frame()
+        assert BreakoutStrategy(self.cfg_with(max_ext_pct=10.0)).evaluate(df, "T", "T", "us") is None
+        assert BreakoutStrategy(self.cfg_with(max_ext_pct=30.0)).evaluate(df, "T", "T", "us") is not None
+
+    def test_rsi_max_blocks_and_passes(self) -> None:
+        df = self.fire_frame()
+        assert BreakoutStrategy(self.cfg_with(rsi_max=40.0)).evaluate(df, "T", "T", "us") is None
+        assert BreakoutStrategy(self.cfg_with(rsi_max=75.0)).evaluate(df, "T", "T", "us") is not None
+
+    def test_guard_nan_fails_closed(self) -> None:
+        df = self.fire_frame()
+        df.loc[df.index[-1], "rsi14"] = float("nan")
+        assert BreakoutStrategy(self.cfg_with(rsi_max=75.0)).evaluate(df, "T", "T", "us") is None

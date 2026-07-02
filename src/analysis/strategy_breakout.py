@@ -11,6 +11,11 @@ def _gt(a: float, b: float) -> bool:
     return pd.notna(a) and pd.notna(b) and a > b
 
 
+def _le(a: float, b: float) -> bool:
+    """NaN-safe a <= b (NaN fails closed — guard blocks the signal)."""
+    return pd.notna(a) and pd.notna(b) and a <= b
+
+
 @register
 class BreakoutStrategy(BaseStrategy):
     """Buy(ALL): close > prior 60d high (excl. today); vol>1.5x; ADX>20; close>SMA60."""
@@ -21,12 +26,27 @@ class BreakoutStrategy(BaseStrategy):
     def conditions(self, df: pd.DataFrame) -> list[tuple[str, bool]]:
         row = df.iloc[-1]
         p = self.params
-        return [
+        conds = [
             (f"종가가 직전 {p['lookback_high']}일 고가 돌파", _gt(row["close"], row["prior_high60"])),
             (f"거래량 > 평소의 {p['vol_mult']}배", _gt(row["volume"], p["vol_mult"] * row["vol_ma20"])),
             (f"ADX > {p['adx_min']} (추세 강도)", _gt(row["adx14"], p["adx_min"])),
             ("주가가 60일선 위", _gt(row["close"], row[f"sma{p['trend_sma']}"])),
         ]
+        # Optional overheat guards (Part B) — keys absent from YAML = baseline
+        # behavior, byte for byte. NaN inputs fail closed (signal blocked).
+        if "max_ext_atr" in p:
+            ext_atr = (row["close"] - row["sma20"]) / row["atr14"]
+            conds.append(
+                (f"과열 아님: SMA20 이격 ≤ {p['max_ext_atr']} ATR", _le(ext_atr, p["max_ext_atr"]))
+            )
+        if "max_ext_pct" in p:
+            ext_pct = (row["close"] / row["sma20"] - 1.0) * 100.0
+            conds.append(
+                (f"과열 아님: SMA20 이격 ≤ {p['max_ext_pct']}%", _le(ext_pct, p["max_ext_pct"]))
+            )
+        if "rsi_max" in p:
+            conds.append((f"RSI(14) ≤ {p['rsi_max']}", _le(row["rsi14"], p["rsi_max"])))
+        return conds
 
     def should_exit(self, df: pd.DataFrame) -> str | None:
         row = df.iloc[-1]

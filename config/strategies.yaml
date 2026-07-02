@@ -10,6 +10,8 @@
 
 strategies:
   pullback:               # ① 눌림목
+    # Phase-4 re-run 2026-07-02 (US 77-ticker 3y, costs on): FAIL —
+    # OoS PF 0.69 / WR 39.1% (n=23), WF 0/3, sensitivity 0/4. 비활성 유지.
     enabled: false
     exit_mode: fixed
     min_bars: 150
@@ -25,6 +27,9 @@ strategies:
       rsi_exit: 70
 
   zscore_meanrev:         # ② Z-Score 평균회귀
+    # Phase-4 re-run 2026-07-02: FAIL (G6 표본만) — OoS n=14 < 20. 나머지
+    # 게이트 전부 통과 (OoS PF 1.77 / WR 57.1%, MC tail-MDD 6.0%, 민감도 4/4,
+    # bear PF 4.47). 표본 축적 시 최우선 재검증 후보. 지금은 비활성 유지.
     enabled: false
     exit_mode: fixed
     min_bars: 60
@@ -37,6 +42,9 @@ strategies:
       time_stop_days: 10
 
   connors_rsi2:           # ③ 단기 과매도 반등 (Larry Connors RSI(2))
+    # Phase-4 re-run 2026-07-02: FAIL (G5 민감도만) — rsi2_entry ±20%에서
+    # PF 0.64/0.74 붕괴 (임계값 과민). 나머지 통과 (OoS PF 1.07 / WR 62.3%,
+    # n=470). 경계선 = 비활성 유지 (활성화 규칙).
     enabled: false
     exit_mode: fixed
     min_bars: 250         # SMA200-dependent
@@ -51,6 +59,11 @@ strategies:
     # Phase-4 gates PASSED 2026-06-12 (US 78-ticker 3y sample, costs on):
     # OoS PF 2.55, OoS WR 53.7%, WF 3/3, MC(10% sizing) worst-tail MDD 12.4%,
     # sensitivity 4/4. See validation log in Phase 4 report.
+    # Re-run 2026-07-02 (US 77-ticker, window through 2026-06 KR/US drawdown):
+    # still PASS but weaker — OoS PF 1.03 / WR 38.7% (n=93), WF 3/3 (W3=1.01),
+    # MC tail-MDD 16.6%. Overheat-guard comparison (same date, pre-registered
+    # criterion): NO variant met "OoS WR +3%p AND PF>=0.9x AND n>=0.7x" —
+    # guards NOT adopted (best PF-only: max_ext_pct=15 -> PF 1.13, WR flat).
     enabled: true
     exit_mode: atr_trailing
     min_bars: 150
