@@ -4,6 +4,7 @@ import pandas as pd
 
 from src.analysis.base_strategy import BaseStrategy, Signal
 from src.analysis.registry import register
+from src.risk.distribution import distribution_evidence
 
 
 def _gt(a: float, b: float) -> bool:
@@ -21,7 +22,7 @@ class PullbackStrategy(BaseStrategy):
     def conditions(self, df: pd.DataFrame) -> list[tuple[str, bool]]:
         row = df.iloc[-1]
         p = self.params
-        return [
+        conds = [
             ("주가가 60일선 위 (중기 상승)", _gt(row["close"], row[f"sma{p['trend_sma']}"])),
             ("20일선이 60일선 위 (정배열)", _gt(row[f"sma{p['pull_sma']}"], row[f"sma{p['trend_sma']}"])),
             (f"RSI < {p['rsi_max']} (단기 조정)", _gt(p["rsi_max"], row["rsi14"])),
@@ -29,6 +30,13 @@ class PullbackStrategy(BaseStrategy):
             (f"거래량 ≥ 평소의 {p['vol_ratio_min']}배", _gt(row["volume"], p["vol_ratio_min"] * row["vol_ma20"])),
             ("주가가 볼린저 중심선 이하 (눌림)", _gt(row["bb_mid"], row["close"]) or row["close"] == row["bb_mid"]),
         ]
+        if "dist_veto_bars" in p:
+            n = int(p["dist_veto_bars"])
+            conds.append((
+                f"최근 {n}봉 내 분산(UTAD) 징후 없음",
+                distribution_evidence(df, recent_bars=n) is None,
+            ))
+        return conds
 
     def should_exit(self, df: pd.DataFrame) -> str | None:
         row = df.iloc[-1]

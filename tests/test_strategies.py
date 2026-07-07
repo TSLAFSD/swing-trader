@@ -228,3 +228,48 @@ class TestBreakoutOverheatGuards:
         df = self.fire_frame()
         df.loc[df.index[-1], "rsi14"] = float("nan")
         assert BreakoutStrategy(self.cfg_with(rsi_max=75.0)).evaluate(df, "T", "T", "us") is None
+
+
+class TestPullbackDistVeto:
+    """Part 2b (2026-07-07): optional distribution veto — parity when absent."""
+
+    def _config(self, veto: int | None) -> dict:
+        import copy
+
+        from src.analysis.base_strategy import load_strategy_config
+
+        cfg = copy.deepcopy(load_strategy_config())
+        cfg["strategies"]["pullback"]["params"].pop("dist_veto_bars", None)
+        if veto is not None:
+            cfg["strategies"]["pullback"]["params"]["dist_veto_bars"] = veto
+        return cfg
+
+    def test_parity_without_param(self) -> None:
+        from src.analysis.indicators import compute_indicators
+        from src.analysis.strategy_pullback import PullbackStrategy
+        from tests.test_distribution import utad_frame
+
+        df = compute_indicators(utad_frame())
+        conds = PullbackStrategy(self._config(None)).conditions(df)
+        assert len(conds) == 6  # exact baseline checklist, no veto row
+
+    def test_veto_condition_appended_and_fails_on_utad(self) -> None:
+        from src.analysis.indicators import compute_indicators
+        from src.analysis.strategy_pullback import PullbackStrategy
+        from tests.test_distribution import utad_frame
+
+        df = compute_indicators(utad_frame())
+        conds = PullbackStrategy(self._config(10)).conditions(df)
+        assert len(conds) == 7
+        label, ok = conds[-1]
+        assert "분산" in label
+        assert ok is False  # fixture has a fresh UTAD -> veto trips
+
+    def test_veto_passes_on_plain_uptrend(self) -> None:
+        from src.analysis.indicators import compute_indicators
+        from src.analysis.strategy_pullback import PullbackStrategy
+        from tests.test_wyckoff_vpa import make_df
+
+        df = compute_indicators(make_df([100 + 0.2 * i for i in range(200)]))
+        label, ok = PullbackStrategy(self._config(10)).conditions(df)[-1]
+        assert ok is True
