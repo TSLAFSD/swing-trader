@@ -484,6 +484,7 @@ def main() -> None:
         sub.add_parser(name)
     backtest = sub.add_parser("backtest")
     backtest.add_argument("--smoke", action="store_true")
+    backtest.add_argument("--strategy", default=None)
     analyze = sub.add_parser("analyze")
     analyze.add_argument("ticker")
     add = sub.add_parser("position-add")
@@ -513,7 +514,7 @@ def main() -> None:
         elif args.command == "backtest":
             from src.backtest.run_validation import run
 
-            run(smoke=args.smoke)
+            run(smoke=args.smoke, only=args.strategy)
         elif args.command == "analyze":
             from src.commands.analyze_cmd import analyze
             from src.data.store import restore_from_data_branch

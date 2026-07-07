@@ -62,3 +62,29 @@ class TestRegimeSeries:
         assert regimes.iloc[120] == "bull"   # late in the climb
         assert regimes.iloc[290] == "bear"   # late in the slide
         assert set(regimes.unique()) <= {"bull", "bear", "sideways"}
+
+
+class TestStrategyFilter:
+    def test_filter_keeps_only_requested(self) -> None:
+        from src.analysis.registry import get_strategies
+        from src.backtest.run_validation import filter_strategies
+
+        strategies = get_strategies(enabled_only=False)
+        kept = filter_strategies(strategies, "zscore_meanrev")
+        assert [s.strategy_id for s in kept] == ["zscore_meanrev"]
+
+    def test_filter_none_keeps_all(self) -> None:
+        from src.analysis.registry import get_strategies
+        from src.backtest.run_validation import filter_strategies
+
+        strategies = get_strategies(enabled_only=False)
+        assert filter_strategies(strategies, None) == list(strategies)
+
+    def test_filter_unknown_raises(self) -> None:
+        import pytest
+
+        from src.analysis.registry import get_strategies
+        from src.backtest.run_validation import filter_strategies
+
+        with pytest.raises(ValueError, match="unknown strategy"):
+            filter_strategies(get_strategies(enabled_only=False), "nope")

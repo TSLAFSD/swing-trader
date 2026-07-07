@@ -63,14 +63,36 @@ def build_frames(market: str, n_sample: int, min_bars: int = 260) -> dict[str, p
     return frames
 
 
-def run(smoke: bool = False) -> dict[str, GateReport]:
+def filter_strategies(strategies: list, only: str | None) -> list:
+    """Keep only the requested strategy_id (None = all).
+
+    Args:
+        strategies: get_strategies() output.
+        only: strategy_id to isolate, or None.
+
+    Returns:
+        Filtered list.
+
+    Raises:
+        ValueError: only does not match any registered strategy.
+    """
+    if only is None:
+        return list(strategies)
+    kept = [s for s in strategies if s.strategy_id == only]
+    if not kept:
+        raise ValueError(f"unknown strategy id: {only!r}")
+    return kept
+
+
+def run(smoke: bool = False, only: str | None = None) -> dict[str, GateReport]:
     """Run the full validation suite; returns {strategy_id: GateReport}.
 
     Args:
         smoke: Tiny sample / fewer MC runs — debug only, never gates YAML.
+        only: Validate a single strategy_id (None = all registered).
     """
     config = load_strategy_config()
-    strategies = get_strategies(config, enabled_only=False)
+    strategies = filter_strategies(get_strategies(config, enabled_only=False), only)
     n_us = 8 if smoke else settings.VAL_SAMPLE_US
     n_kr = 4 if smoke else settings.VAL_SAMPLE_KR
 
