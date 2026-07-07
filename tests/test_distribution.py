@@ -2,7 +2,12 @@
 
 import pandas as pd
 
-from src.risk.distribution import check_distribution
+from src.risk.distribution import (
+    DIST_TAG_PREFIX,
+    candidate_tag_kr,
+    check_distribution,
+    distribution_evidence,
+)
 from tests.test_wyckoff_vpa import make_df, spring_frame
 
 
@@ -34,3 +39,28 @@ class TestDistribution:
     def test_silent_on_plain_uptrend(self) -> None:
         closes = [100 + 0.2 * i for i in range(200)]
         assert check_distribution(make_df(closes), "테스트", "TEST") is None
+
+
+class TestDistributionEvidence:
+    def test_evidence_on_utad_frame(self) -> None:
+        ev = distribution_evidence(utad_frame())
+        assert ev is not None
+        assert ev.climax_fresh or ev.exhaustion_fresh
+        assert ev.volume_ratio > 0
+        assert ev.test_volume_ratio is not None  # exhaustion present in fixture
+
+    def test_no_evidence_on_plain_uptrend(self) -> None:
+        closes = [100 + 0.2 * i for i in range(200)]
+        assert distribution_evidence(make_df(closes)) is None
+
+    def test_candidate_tag_is_one_line_korean(self) -> None:
+        ev = distribution_evidence(utad_frame())
+        tag = candidate_tag_kr(ev)
+        assert tag.startswith(DIST_TAG_PREFIX)
+        assert "\n" not in tag
+        assert "설거지" in tag
+
+    def test_recent_bars_window_respected(self) -> None:
+        # A huge window keeps stale evidence alive; the default window is what
+        # makes iloc[:140] silent in test_silent_before_climax.
+        assert distribution_evidence(utad_frame(), recent_bars=10_000) is not None
