@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 
 from src.analysis.base_strategy import Signal
 from src.analysis.signal_engine import ScanResult
+from src.risk.distribution import DIST_TAG_PREFIX
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +69,11 @@ def scan_message(
     if preliminary:
         header += "\n⚠️ 예비(미확정) — 종가 확정 전 참고용입니다"
     filtered_note = f" (필터 제외 {filtered_count}건)" if filtered_count else ""
-    body = [header, f"✅ {result.total_scanned:,}종목 스캔 · 시그널 {len(result.signals)}개{filtered_note}"]
+    dist_n = sum(
+        1 for s in result.signals if any(t.startswith(DIST_TAG_PREFIX) for t in s.tags)
+    )
+    dist_note = f" · 분산 의심 {dist_n}건" if dist_n else ""
+    body = [header, f"✅ {result.total_scanned:,}종목 스캔 · 시그널 {len(result.signals)}개{filtered_note}{dist_note}"]
     if result.regime:
         body.append(f"🌐 {result.regime.label_kr}")
     if result.anomalies:

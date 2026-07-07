@@ -147,6 +147,16 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
             last_atr = df_ind["atr14"].iloc[-1]
             sig.entry_zone_top = entry_zone_top(sig.price, None if last_atr != last_atr else float(last_atr))
             sig.contrarian = contrarian_indicators(df_ind)
+
+            # Part 3 (2026-07-07): distribution ("설거지") badge — advisory only,
+            # never blocks or re-ranks (could be re-accumulation; a later spring
+            # signal re-recommends it if so).
+            from src.risk.distribution import candidate_tag_kr, distribution_evidence
+
+            dist_ev = distribution_evidence(df_ind)
+            if dist_ev is not None:
+                sig.tags.append(candidate_tag_kr(dist_ev))
+
             corr_warn = None
             if held and held_data is not None and not held_data.empty:
                 closes = {sig.ticker: df_ind["close"]}
