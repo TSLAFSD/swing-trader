@@ -117,8 +117,11 @@ class TestConnorsRsi2:
 class TestBreakout:
     def test_fires(self) -> None:
         df = base_frame()
-        df.loc[df.index[-1], ["close", "prior_high60", "volume", "adx14", "sma60"]] = [
-            61.0, 60.0, 2_000_000.0, 25.0, 50.0,
+        # sma20=54 keeps ext_pct=(61/54-1)*100≈13.0% under the production
+        # max_ext_pct=15 overheat guard (adopted 2026-07-07) while still
+        # clearing prior_high60 and staying above sma60.
+        df.loc[df.index[-1], ["close", "prior_high60", "volume", "adx14", "sma60", "sma20"]] = [
+            61.0, 60.0, 2_000_000.0, 25.0, 50.0, 54.0,
         ]
         sig = BreakoutStrategy(CFG).evaluate(df, "TEST", "테스트", "us")
         assert sig is not None
@@ -199,14 +202,23 @@ class TestBreakoutOverheatGuards:
         return df
 
     def cfg_with(self, **extra) -> dict:
+        """Real CFG with ALL guard keys stripped, then only the given ones applied.
+
+        Isolates single-guard behavior regardless of which guards production
+        YAML happens to have adopted (e.g. max_ext_pct=15, adopted 2026-07-07)
+        so each test exercises exactly the guard(s) it names.
+        """
         import copy
 
         cfg = copy.deepcopy(CFG)
-        cfg["strategies"]["breakout"]["params"].update(extra)
+        params = cfg["strategies"]["breakout"]["params"]
+        for guard_key in ("max_ext_atr", "max_ext_pct", "rsi_max"):
+            params.pop(guard_key, None)
+        params.update(extra)
         return cfg
 
     def test_baseline_has_exactly_four_conditions(self) -> None:
-        conds = BreakoutStrategy(CFG).conditions(self.fire_frame())
+        conds = BreakoutStrategy(self.cfg_with()).conditions(self.fire_frame())
         assert len(conds) == 4  # byte-for-byte baseline when guards absent
 
     def test_max_ext_atr_blocks_and_passes(self) -> None:

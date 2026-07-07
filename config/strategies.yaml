@@ -64,6 +64,11 @@ strategies:
     # MC tail-MDD 16.6%. Overheat-guard comparison (same date, pre-registered
     # criterion): NO variant met "OoS WR +3%p AND PF>=0.9x AND n>=0.7x" —
     # guards NOT adopted (best PF-only: max_ext_pct=15 -> PF 1.13, WR flat).
+    # Re-run 2026-07-07 (US 154-ticker, VAL_SAMPLE_US=160 expansion) WITH
+    # max_ext_pct=15 guard (owner-approved post-hoc criterion applied to the
+    # 7/2 grid): full Phase-4 re-passed — OoS PF 1.15 / WR 40.7% (n=145),
+    # WF 3/3, MC(10% sizing) worst-tail MDD 19.6%, sensitivity 4/4. Guard
+    # ADOPTED. Verbatim output in the 07-07 spec log.
     enabled: true
     exit_mode: atr_trailing
     min_bars: 150
@@ -74,6 +79,10 @@ strategies:
       trend_sma: 60
       atr_k: 3.0          # chandelier multiplier
       time_stop_days: 20
+      max_ext_pct: 15.0  # overheat guard, adopted 2026-07-07 — owner-approved
+                         # POST-HOC criterion (PF>=x1.05 AND WR>=-1%p AND n>=x0.7,
+                         # set after seeing the 7/2 grid); full Phase-4 re-passed
+                         # same date, verbatim output in the 07-07 spec log.
 
   squeeze:                # ⑤ 변동성 스퀴즈 (TTM-style)
     enabled: false
