@@ -89,7 +89,9 @@ VAL_SENS_PF_RATIO_MIN = 0.6  # perturbed PF >= ratio x base PF...
 VAL_SENS_PF_ABS_MIN = 0.9  # ...AND >= this absolute floor (cliff-edge = overfit)
 VAL_MIN_TRADES_OOS = 20  # below this the OoS verdict is statistically meaningless
 VAL_WR_DROP_MAX = 0.10  # OoS win rate >= IS win rate - 10%p
-VAL_SAMPLE_US = 80  # representative universe sample sizes
+VAL_SAMPLE_US = 160  # 2026-07-07 owner-approved expansion (was 80): OoS sample
+                     # floor VAL_MIN_TRADES_OOS=20 was unreachable for sparse
+                     # strategies (zscore n=14, spring n=12 on the 07-02 run).
 VAL_SAMPLE_KR = 20
 VAL_SENS_TICKERS = 20  # sensitivity runs use a sub-sample (compute budget)
 
