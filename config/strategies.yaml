@@ -12,6 +12,11 @@ strategies:
   pullback:               # ① 눌림목
     # Phase-4 re-run 2026-07-02 (US 77-ticker 3y, costs on): FAIL —
     # OoS PF 0.69 / WR 39.1% (n=23), WF 0/3, sensitivity 0/4. 비활성 유지.
+    # Distribution-veto grid 2026-07-08 (US 154-ticker, pre-registered
+    # dist_veto_bars in {5,10}, informational): baseline OoS PF 0.62 (n=40),
+    # veto=5 identical 0.62, veto=10 -> 0.66 (n=39) — no variant near PF>=1,
+    # full gates NOT run, veto param NOT adopted. 비활성 유지.
+    # Verbatim output in the 07-07 spec log, Part 2 section.
     enabled: false
     exit_mode: fixed
     min_bars: 150
@@ -30,7 +35,11 @@ strategies:
     # Phase-4 re-run 2026-07-02: FAIL (G6 표본만) — OoS n=14 < 20. 나머지
     # 게이트 전부 통과 (OoS PF 1.77 / WR 57.1%, MC tail-MDD 6.0%, 민감도 4/4,
     # bear PF 4.47). 표본 축적 시 최우선 재검증 후보. 지금은 비활성 유지.
-    enabled: false
+    # Re-run 2026-07-08 (US 154-ticker, VAL_SAMPLE_US=160 expansion): full
+    # Phase-4 PASS — OoS PF 1.11 / WR 52.0% (n=25, >= floor 20), WF 3/3
+    # (W1=1.63, W2=1.83, W3=1.37), MC(10% sizing) worst-tail MDD 7.6%,
+    # sensitivity 4/4. Verbatim output in the 07-07 spec log, Part 2 section.
+    enabled: true
     exit_mode: fixed
     min_bars: 60
     params:
@@ -96,6 +105,11 @@ strategies:
       time_stop_days: 15
 
   wyckoff_spring:         # ⑥ 와이코프 스프링 — U2/U3: VPA 3-stage engine
+    # Phase-4 re-run 2026-07-08 (US 154-ticker, VAL_SAMPLE_US=160 expansion):
+    # FAIL on CONTENT, not sample — OoS n=24 >= 20 (G6 통과) but OoS PF 0.59 /
+    # WR 33.3%, WF 1/3 (W1=0.33, W3=0.53), sensitivity 3/4
+    # (vpa.exhaust_ratio x0.8 -> PF 0.898). 표본 확대로도 탈락 — 비활성 유지.
+    # Verbatim output in the 07-07 spec log, Part 2 section.
     enabled: false
     exit_mode: atr_trailing
     min_bars: 150
