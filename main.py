@@ -150,12 +150,16 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
 
             # Part 3 (2026-07-07): distribution ("설거지") badge — advisory only,
             # never blocks or re-ranks (could be re-accumulation; a later spring
-            # signal re-recommends it if so).
+            # signal re-recommends it if so). Badge failure must not cost the
+            # signal itself, so it gets its own guard inside the ticker guard.
             from src.risk.distribution import candidate_tag_kr, distribution_evidence
 
-            dist_ev = distribution_evidence(df_ind)
-            if dist_ev is not None:
-                sig.tags.append(candidate_tag_kr(dist_ev))
+            try:
+                dist_ev = distribution_evidence(df_ind)
+                if dist_ev is not None:
+                    sig.tags.append(candidate_tag_kr(dist_ev))
+            except Exception:
+                logger.exception("distribution badge failed for %s — signal kept", sig.ticker)
 
             corr_warn = None
             if held and held_data is not None and not held_data.empty:
@@ -484,7 +488,10 @@ def main() -> None:
         sub.add_parser(name)
     backtest = sub.add_parser("backtest")
     backtest.add_argument("--smoke", action="store_true")
-    backtest.add_argument("--strategy", default=None)
+    backtest.add_argument(
+        "--strategy", default=None,
+        help="validate a single strategy id (e.g. zscore_meanrev); default: all",
+    )
     analyze = sub.add_parser("analyze")
     analyze.add_argument("ticker")
     add = sub.add_parser("position-add")
