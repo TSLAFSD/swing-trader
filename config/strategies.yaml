@@ -111,6 +111,11 @@ strategies:
     # (vpa.exhaust_ratio x0.8 -> PF 0.898). 표본 확대로도 탈락 — 비활성 유지.
     # Verbatim output in the 07-07 spec log, Part 2 section.
     enabled: false
+    # Observe lane (owner-requested 2026-07-18): scans run this strategy but its
+    # signals are REFERENCE-ONLY (관찰 · 추천 아님 Telegram section, reports,
+    # tracker rows for a future re-validation) — never recommendation cards,
+    # never send cutoffs, never paper buys. enabled stays the Phase-4 gate.
+    observe: true
     exit_mode: atr_trailing
     min_bars: 150
     params:

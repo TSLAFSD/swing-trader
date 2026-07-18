@@ -70,14 +70,20 @@ def _band(fwd: pd.DataFrame, lo: float, hi: float) -> tuple[int, float, float]:
     return len(realized), float((realized > 0).mean()), float(realized.mean())
 
 
-def propose_and_apply(fwd: pd.DataFrame, path=None) -> dict | None:
+def propose_and_apply(fwd: pd.DataFrame, path=None, enabled_ids: set[str] | None = None) -> dict | None:
     """Weekly: nudge the cutoff from marginal-band realized performance.
+
+    Args:
+        enabled_ids: When given, only these strategies' rows count — observe-lane
+            (reference-only) signals must never move the send cutoff.
 
     Returns {old, new, changed, reason_kr} (the change is persisted only when
     changed), or None when the lever is disabled.
     """
     if not (settings.ADAPTIVE_LOOP_ENABLED and settings.ACCEPTANCE_CUTOFF_ENABLED):
         return None
+    if enabled_ids is not None and fwd is not None and not fwd.empty and "strategy_id" in fwd.columns:
+        fwd = fwd[fwd["strategy_id"].isin(enabled_ids)]
     current = effective_cutoff(path)
     step = settings.ACCEPTANCE_CUTOFF_MAX_STEP
     floor, ceiling = settings.ACCEPTANCE_CUTOFF_FLOOR, settings.ACCEPTANCE_CUTOFF_CEILING

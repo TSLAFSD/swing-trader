@@ -27,6 +27,10 @@ from src.analysis.regime import RegimeState, get_regime
 
 logger = logging.getLogger(__name__)
 
+# Rides on every observe-lane signal (card + report) so the label can never
+# be lost between the scan and the reader.
+OBSERVE_TAG = "🔍 관찰 — 검증 미통과 · 추천 아님"
+
 
 @dataclass
 class ScanResult:
@@ -41,6 +45,7 @@ class ScanResult:
     breadth_pct: float | None = None
     regime: RegimeState | None = None
     signal_frames: dict[str, pd.DataFrame] = field(default_factory=dict)  # for reports
+    references: list[Signal] = field(default_factory=list)  # observe lane, 추천 아님
 
 
 def _passes_prescan(df: pd.DataFrame, market: str) -> bool:
@@ -100,7 +105,10 @@ def scan_market(
         ScanResult with ranked top-N signals and health-check metadata.
     """
     names = names or {}
-    strategies = get_strategies(config, enabled_only=enabled_only)
+    # include_observe only matters on the live path (enabled_only=True):
+    # observe-lane strategies scan alongside enabled ones, but their signals
+    # are reference-only (validation/demo runs already include everything).
+    strategies = get_strategies(config, enabled_only=enabled_only, include_observe=enabled_only)
     # Normalize dtype: DuckDB returns datetime64, fetchers return datetime.date —
     # the per-ticker "has a bar on the latest trading day" guard needs equality.
     ohlcv = ohlcv.copy()
@@ -153,6 +161,9 @@ def scan_market(
                 logger.exception("strategy %s crashed on %s", strategy.strategy_id, ticker)
                 continue
             if sig is not None:
+                if enabled_only and not strategy.enabled:  # observe lane
+                    sig.is_reference = True
+                    sig.tags.append(OBSERVE_TAG)
                 raw_signals.append(sig)
                 fired = True
         if fired:
@@ -197,12 +208,16 @@ def scan_market(
                 sig.tags.append(f"⚠️ {earnings:%m/%d} 실적발표 예정 — 갭 리스크")
 
     signals.sort(key=lambda s: s.strength, reverse=True)
+    # Observe lane: references never compete with recommendations for top-N.
+    references = [s for s in signals if s.is_reference][: settings.OBSERVE_MAX_ITEMS]
+    signals = [s for s in signals if not s.is_reference]
     top = signals[: settings.SCAN_TOP_N]
     logger.info(
-        "scan %s done: %d scanned, %d signals (%d kept), %d anomalies, breadth %.1f%%",
-        market, total_scanned, len(signals), len(top), len(anomalies),
+        "scan %s done: %d scanned, %d signals (%d kept), %d references, %d anomalies, breadth %.1f%%",
+        market, total_scanned, len(signals), len(top), len(references), len(anomalies),
         breadth if breadth == breadth else float("nan"),
     )
+    kept = top + references
     return ScanResult(
         market=market,
         scan_date=scan_date,
@@ -212,5 +227,6 @@ def scan_market(
         rs_dropped=rs_dropped,
         breadth_pct=breadth,
         regime=regime,
-        signal_frames={s.ticker: signal_frames[s.ticker] for s in top if s.ticker in signal_frames},
+        signal_frames={s.ticker: signal_frames[s.ticker] for s in kept if s.ticker in signal_frames},
+        references=references,
     )

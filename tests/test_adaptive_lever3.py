@@ -71,6 +71,19 @@ class TestProposeAndApply:
         out = cutoff.propose_and_apply(df, path)
         assert out["new"] == 60.0  # 58 + 5 clamped to ceiling
 
+    def test_disabled_strategy_rows_ignored(self, adaptive_on, tmp_path):
+        # Observe-lane signals (disabled strategies) must not move the cutoff.
+        df = fwd_df([(25.0, -0.03)] * 8 + [(25.0, 0.01)] * 4)
+        df["strategy_id"] = "wyckoff_spring"
+        out = cutoff.propose_and_apply(df, tmp_path / "c.json", enabled_ids={"breakout"})
+        assert out["changed"] is False and out["new"] == 20.0
+
+    def test_enabled_strategy_rows_still_move(self, adaptive_on, tmp_path):
+        df = fwd_df([(25.0, -0.03)] * 8 + [(25.0, 0.01)] * 4)
+        df["strategy_id"] = "breakout"
+        out = cutoff.propose_and_apply(df, tmp_path / "c.json", enabled_ids={"breakout"})
+        assert out["changed"] is True and out["new"] == 25.0
+
 
 class TestSendFilterWiring:
     def _sig(self, strength):

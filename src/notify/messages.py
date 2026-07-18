@@ -98,6 +98,16 @@ def scan_message(
         if rest:
             body.append(f"외 {len(rest)}건 — 리포트 참조: " + ", ".join(s.ticker for s in rest))
         body.append("※ 매수 범위 상단 초과 시 추격 금지 · 상세 지표는 리포트 참조")
+    if result.references:
+        body.append("")
+        body.append(f"🔍 관찰 · 검증 미통과 — 추천 아님 ({len(result.references)}건)")
+        for sig in result.references:
+            grade = f"등급 {sig.grade}" if sig.grade else f"강도 {sig.strength:.0f}"
+            body.append(f"· {sig.name}({sig.ticker}) · {grade} · {_fmt_price(sig.price, sig.market)}")
+            url = report_urls.get(sig.ticker)
+            if url:
+                body.append(f"  📄 {url}")
+        body.append("※ 검증 게이트 미통과 전략의 신호 — 매수 추천이 아닙니다")
     return "\n".join(body).strip()
 
 

@@ -114,7 +114,9 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
     conf_labels: dict[str, str] = {}
     confs: dict[str, object] = {}  # ticker -> ConfidenceReport (send filter)
     failed_tickers: list[str] = []
-    for sig in list(result.signals):
+    # References (observe lane) get the same enrichment + report, but stay out
+    # of ranking, send cutoffs, paper buys and the feed (recommendations only).
+    for sig in list(result.signals) + list(result.references):
         # Per-ticker guard: one broken ticker must never kill the whole scan
         # (2026-07-02: a single KR report crash aborted the entire run).
         try:
@@ -185,14 +187,16 @@ def _scan(market: str, preliminary: bool = False, publish: bool = True) -> None:
             urls[sig.ticker] = report_url(path)
         except Exception:
             logger.exception("signal pipeline failed for %s — excluded from this scan", sig.ticker)
-            result.signals.remove(sig)
+            (result.references if sig.is_reference else result.signals).remove(sig)
             failed_tickers.append(sig.ticker)
     if failed_tickers:
         # Surfaced on the health line (anomaly list) — failures must never be silent.
         result.anomalies.extend(f"{t}(리포트 실패)" for t in failed_tickers)
     result.signals.sort(key=lambda s: s.strength, reverse=True)
 
-    tracker.record_signals(result.signals)  # ALL ranked signals (weekly tracking)
+    # ALL ranked signals + observe-lane references (weekly tracking; references
+    # build the realized sample a future Phase-4 re-validation can lean on).
+    tracker.record_signals(result.signals + result.references)
 
     # Send-stage cutoffs (A-2): reports above were already generated for all.
     from src.notify.send_filter import filter_for_send
@@ -418,7 +422,7 @@ def _weekly(publish: bool = True) -> None:
     from src.adaptive import audit as adaptive_audit
     from src.adaptive.cutoff import propose_and_apply
 
-    cutoff_change = propose_and_apply(fwd)
+    cutoff_change = propose_and_apply(fwd, enabled_ids=enabled_ids)
     cutoff_line = ""
     if cutoff_change and cutoff_change["changed"]:
         adaptive_audit.record(

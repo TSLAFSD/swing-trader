@@ -74,6 +74,7 @@ RS_FLOOR_ACTION = "drop"  # ..."drop" or "downgrade" (x0.7 strength)
 RS_DOWNGRADE_FACTOR = 0.7
 EARNINGS_WARN_DAYS = 5  # trading days; best-effort tag, never blocks
 SCAN_TOP_N = 10  # ranked signals kept per scan (Telegram shows top 5)
+OBSERVE_MAX_ITEMS = 3  # observe-lane (참고용, 추천 아님) items kept per scan
 
 # --- Validation gates (Phase 4, spec §7 Layer 1) ------------------------
 VAL_IS_FRAC = 0.70  # in-sample 70% / out-of-sample 30% time split

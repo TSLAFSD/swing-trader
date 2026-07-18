@@ -5,6 +5,7 @@ of truth, shared with the Phase-4 backtesting.py adapters) and evaluates the
 LAST bar of a per-ticker indicator frame, emitting Signal | None.
 """
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import date
@@ -16,6 +17,8 @@ import pandas as pd
 import yaml
 
 from config import settings
+
+logger = logging.getLogger(__name__)
 
 STRATEGIES_YAML = settings.REPO_ROOT / "config" / "strategies.yaml"
 
@@ -54,6 +57,7 @@ class Signal:
     wyckoff_badge: str = ""  # 🟢 매집권 / 🟡 관찰 / ⚪ 해당 없음
     entry_zone_top: float | None = None  # 매수 범위 상단 (above = 추격 금지)
     contrarian: list[str] = field(default_factory=list)  # against-the-buy list
+    is_reference: bool = False  # observe-lane signal: never a recommendation
 
 
 class BaseStrategy(ABC):
@@ -76,6 +80,11 @@ class BaseStrategy(ABC):
         cfg = (config or load_strategy_config())["strategies"][self.strategy_id]
         self.params: dict[str, Any] = cfg["params"]
         self.enabled: bool = bool(cfg.get("enabled", False))
+        # Observe lane: run in scans as reference-only (never a recommendation).
+        # enabled wins — a Phase-4-passed strategy needs no observation.
+        self.observe: bool = bool(cfg.get("observe", False)) and not self.enabled
+        if cfg.get("observe") and self.enabled:
+            logger.warning("%s: observe ignored — strategy is enabled", self.strategy_id)
         self.exit_mode: str = cfg.get("exit_mode", "fixed")
         self.min_bars: int = int(cfg.get("min_bars", 150))
 

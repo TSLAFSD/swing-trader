@@ -36,13 +36,17 @@ def _import_strategy_modules() -> None:
 
 
 def get_strategies(
-    config: dict[str, Any] | None = None, enabled_only: bool = True
+    config: dict[str, Any] | None = None,
+    enabled_only: bool = True,
+    include_observe: bool = False,
 ) -> list[BaseStrategy]:
     """Instantiate registered strategies.
 
     Args:
         config: strategies.yaml dict override (tests); default file config.
         enabled_only: If True, return only YAML-enabled strategies.
+        include_observe: With enabled_only, also return observe-lane strategies
+            (reference-only signals; ignored when enabled_only=False).
 
     Returns:
         Strategy instances (deterministic order by strategy_id).
@@ -50,6 +54,6 @@ def get_strategies(
     _import_strategy_modules()
     instances = [cls(config) for _, cls in sorted(_REGISTRY.items())]
     if enabled_only:
-        instances = [s for s in instances if s.enabled]
+        instances = [s for s in instances if s.enabled or (include_observe and s.observe)]
     logger.info("registry: %d strategies loaded (enabled_only=%s)", len(instances), enabled_only)
     return instances

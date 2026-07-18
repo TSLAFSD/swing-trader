@@ -40,6 +40,12 @@ GitHub Actions (cron) + GitHub Pages (reports) + Telegram (alerts) + Cloudflare 
   (pivots confirmed after pivot_strength right candles); params live under
   strategies.yaml wyckoff_spring.params.vpa; the distribution monitor
   (src/risk/distribution.py) runs on HELD tickers regardless of enablement.
+- **Observe lane (2026-07-18)**: strategies.yaml `observe: true` runs a
+  DISABLED strategy in scans as reference-only — separate 관찰 Telegram section
+  (max OBSERVE_MAX_ITEMS, "추천 아님" labeled), reports + tracker rows included,
+  but NEVER recommendation cards/top-5, send cutoffs, paper buys, the feed, or
+  Lever-3 cutoff stats (propose_and_apply enabled_ids filter). `enabled: true`
+  still requires Phase-4 PASS; observe is not a backdoor around the gate.
 - **Charts (U5)**: lightweight-charts v5 via settings.CHART_BACKEND; Plotly
   renderer retained — set CHART_BACKEND="plotly" to roll back. All chart data
   is computed in Python and embedded as JSON; template JS only renders.
