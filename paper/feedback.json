@@ -1,0 +1,69 @@
+{
+  "n_signals": 137,
+  "n_trades": 1,
+  "grade_efficacy": [
+    {
+      "grade": "A",
+      "n": 1,
+      "hit": 0.0,
+      "avg": -1.612869110439319
+    },
+    {
+      "grade": "B",
+      "n": 1,
+      "hit": 0.0,
+      "avg": -30.817610062893085
+    },
+    {
+      "grade": "C",
+      "n": 100,
+      "hit": 0.24,
+      "avg": -10.509995016431136
+    }
+  ],
+  "strategy_efficacy": [
+    {
+      "strategy_id": "breakout",
+      "n": 129,
+      "hit": 0.24806201550387597,
+      "avg": -10.319369250920266
+    }
+  ],
+  "feature_buckets": {
+    "atr14": [
+      {
+        "range": "0.7~6.9",
+        "n": 34,
+        "hit": 0.3235294117647059,
+        "avg": -3.6986395193722954
+      },
+      {
+        "range": "6.9~1533.6",
+        "n": 34,
+        "hit": 0.2647058823529412,
+        "avg": -10.02703994052727
+      },
+      {
+        "range": "1533.6~87926.4",
+        "n": 34,
+        "hit": 0.11764705882352941,
+        "avg": -18.139908211172372
+      }
+    ]
+  },
+  "exit_analysis": {
+    "n": 1,
+    "n_win": 0,
+    "winner_mae_median": null,
+    "loser_mae_median": -7.7387,
+    "winner_mfe_median": null,
+    "winner_giveback_median": null
+  },
+  "suggestions": [
+    {
+      "kind": "suggest",
+      "title": "breakout 적중률 저조",
+      "detail": "129건 적중 25% (<45%) — 재검증/비활성 검토."
+    }
+  ]
+}

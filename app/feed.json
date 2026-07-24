@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-25T05:36:57+09:00",
+  "signals": [
+    {
+      "signal_date": "2026-06-26",
+      "ticker": "ABBV",
+      "yahoo_symbol": "ABBV",
+      "name": "AbbVie",
+      "market": "us",
+      "strategy_id": "breakout",
+      "strategy_name": "돌파",
+      "strength": 28.3,
+      "grade": "C",
+      "grade_value": 43.1,
+      "confidence": 0.3,
+      "regime_factor": 1.0,
+      "price": 253.35,
+      "entry_zone_top": 256.65,
+      "stop_loss": 233.55,
+      "take_profit": null,
+      "exit_mode": "atr_trailing",
+      "wyckoff_badge": "🟡 관찰(2/3)",
+      "reason": "60일 신고가 돌파 (+3.6%), 거래량 평소의 6.1배, ADX 22",
+      "tags": [],
+      "contrarian": [
+        "RSI 70 초과 — 과열 구간",
+        "z-score +1.5 초과 — 평균 대비 이미 높음"
+      ],
+      "report_url": "https://tslafsd.github.io/swing-trader/2026-06-26-ABBV-07d7ee66.html"
+    },
+    {
+      "signal_date": "2026-06-26",
+      "ticker": "EXEL",
+      "yahoo_symbol": "EXEL",
+      "name": "Exelixis",
+      "market": "us",
+      "strategy_id": "breakout",
+      "strategy_name": "돌파",
+      "strength": 21.9,
+      "grade": "C",
+      "grade_value": 40.0,
+      "confidence": 0.3,
+      "regime_factor": 1.0,
+      "price": 54.77,
+      "entry_zone_top": 55.58,
+      "stop_loss": 49.9,
+      "take_profit": null,
+      "exit_mode": "atr_trailing",
+      "wyckoff_badge": "🟡 관찰(2/3)",
+      "reason": "60일 신고가 돌파 (+1.6%), 거래량 평소의 2.4배, ADX 26",
+      "tags": [],
+      "contrarian": [
+        "MACD 히스토그램 음(-) — 단기 모멘텀 약화",
+        "z-score +1.5 초과 — 평균 대비 이미 높음"
+      ],
+      "report_url": "https://tslafsd.github.io/swing-trader/2026-06-26-EXEL-ebdee376.html"
+    },
+    {
+      "signal_date": "2026-06-25",
+      "ticker": "RVMD",
+      "yahoo_symbol": "RVMD",
+      "name": "Revolution Medicines",
+      "market": "us",
+      "strategy_id": "breakout",
+      "strategy_name": "돌파",
+      "strength": 21.8,
+      "grade": "C",
+      "grade_value": 39.9,
+      "confidence": 0.3,
+      "regime_factor": 1.0,
+      "price": 178.17,
+      "entry_zone_top": 181.69,
+      "stop_loss": 157.04,
+      "take_profit": null,
+      "exit_mode": "atr_trailing",
+      "wyckoff_badge": "🟡 관찰(2/3)",
+      "reason": "60일 신고가 돌파 (+4.0%), 거래량 평소의 1.6배, ADX 33",
+      "tags": [],
+      "contrarian": [
+        "RSI 70 초과 — 과열 구간",
+        "z-score +1.5 초과 — 평균 대비 이미 높음"
+      ],
+      "report_url": "https://tslafsd.github.io/swing-trader/2026-06-25-RVMD-4874818b.html"
+    }
+  ],
+  "paper": {
+    "summary": {
+      "start_equity": 10000.0,
+      "n_closed": 1,
+      "win_rate": 0.0,
+      "profit_factor": 0.0,
+      "avg_holding": 25.0,
+      "realized_pnl": -112.1524,
+      "max_drawdown_pct": 0.0,
+      "best": {
+        "ticker": "CAT",
+        "return_pct": -5.61
+      },
+      "worst": {
+        "ticker": "CAT",
+        "return_pct": -5.61
+      },
+      "n_open": 0,
+      "open_unrealized_pnl": 0.0,
+      "period_start": "2026-06-18",
+      "period_end": "2026-07-13",
+      "current_equity": 9887.8476,
+      "realized_return_pct": -1.121524,
+      "total_return_pct": -1.121524000000007
+    },
+    "equity_curve": [
+      {
+        "date": "2026-07-13",
+        "equity": 9887.85,
+        "drawdown_pct": 0.0
+      }
+    ],
+    "by_grade": [
+      {
+        "key": "A",
+        "n": 1,
+        "win_rate": 0.0,
+        "avg_return": -5.61
+      }
+    ],
+    "open": [],
+    "recent_closed": [
+      {
+        "ticker": "CAT",
+        "market": "us",
+        "grade": "A",
+        "strategy_id": "breakout",
+        "entry_date": "2026-06-18",
+        "exit_date": "2026-07-13",
+        "return_pct": -5.61,
+        "holding_days": 25,
+        "exit_reason": "trailing"
+      }
+    ]
+  },
+  "system": {
+    "adaptive_loop_enabled": true,
+    "min_strength_send": 20.0,
+    "enabled_strategies": [
+      {
+        "strategy_id": "breakout",
+        "name": "돌파"
+      },
+      {
+        "strategy_id": "zscore_meanrev",
+        "name": "Z-Score 평균회귀"
+      }
+    ],
+    "effective_cutoff": 25.0,
+    "recent_audit": [
+      {
+        "ts": "2026-07-04T04:08:41+09:00",
+        "lever": "acceptance_cutoff",
+        "old": 20.0,
+        "new": 25.0,
+        "trigger": "수용 경계(20~30) 적중 25%·평균 -8.9% → 컷오프 상향",
+        "regime": null
+      }
+    ]
+  }
+}
