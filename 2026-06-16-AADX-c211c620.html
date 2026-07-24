@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>AADX (AADX) — 분석 리포트</title>
+<script src="https://unpkg.com/lightweight-charts@5/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+  :root { color-scheme: dark;
+    --bg:#0b0e13; --card:#141922; --line:#222a36; --text:#e8edf4; --dim:#8b96a5;
+    --accent:#5aa2ff; --up:#26a69a; --down:#ef5350; --warn:#e8a23d; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif;
+         font-size:15px; line-height:1.6; }
+  .wrap { max-width:760px; margin:0 auto; padding:14px 14px 90px; }
+  .hero { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; }
+  .hero .title { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .hero h1 { font-size:1.3rem; margin:0; }
+  .hero .gradechip { font-size:1.5rem; font-weight:800; color:var(--accent); }
+  .hero .meta { color:var(--dim); font-size:.8rem; margin-top:2px; }
+  .grid4 { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+  .cell { background:#0f141c; border:1px solid var(--line); border-radius:12px; padding:10px 12px; }
+  .cell .k { color:var(--dim); font-size:.72rem; }
+  .cell .v { font-size:.98rem; font-weight:650; margin-top:2px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:16px;
+            padding:14px 16px; margin-top:12px; }
+  h2 { font-size:.95rem; margin:0 0 10px; color:var(--accent); font-weight:700; }
+  ul { padding-left:18px; margin:6px 0; } li { margin:4px 0; }
+  table { width:100%; border-collapse:collapse; font-size:.85rem; }
+  th,td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+  th { color:var(--dim); font-weight:500; }
+  .stage { display:flex; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); }
+  .stage:last-child { border-bottom:none; }
+  .stage .mark { font-size:1rem; }
+  .stage .lbl { font-weight:600; font-size:.88rem; }
+  .stage .val { color:var(--dim); font-size:.8rem; }
+  .ctx { color:var(--dim); font-size:.82rem; margin-top:8px; border-top:1px dashed var(--line); padding-top:8px; }
+  .warnbox { background:#241a10; border:1px solid #5b431f; border-radius:12px; padding:10px 12px; margin:8px 0; }
+  details { margin-top:12px; background:var(--card); border:1px solid var(--line); border-radius:16px; }
+  details summary { padding:14px 16px; cursor:pointer; color:var(--accent); font-weight:700; font-size:.95rem; }
+  details .inner { padding:0 16px 14px; }
+  .chartbox { background:var(--card); border:1px solid var(--line); border-radius:16px;
+              padding:10px 6px 6px; margin-top:12px; }
+  .chartbar { display:flex; gap:6px; padding:0 8px 8px; flex-wrap:wrap; }
+  .chartbar button { background:#0f141c; color:var(--text); border:1px solid var(--line);
+                     border-radius:8px; padding:6px 11px; font-size:.8rem; }
+  .chartbar button.on { border-color:var(--accent); color:var(--accent); font-weight:700; }
+  #lwchart { width:100%; height:640px; }
+  .disclaimer { color:var(--dim); font-size:.72rem; margin-top:20px; line-height:1.55; }
+  .copybar { position:fixed; left:0; right:0; bottom:0; z-index:50;
+             padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+             background:linear-gradient(transparent, rgba(11,14,19,.92) 30%); }
+  .copybar button { width:100%; max-width:732px; margin:0 auto; display:block;
+                    background:var(--accent); color:#06121f; border:none; border-radius:14px;
+                    padding:15px 16px; font-size:1rem; font-weight:800;
+                    box-shadow:0 6px 18px rgba(0,0,0,.45); }
+  .copybar button.done { background:var(--up); color:#03110d; }
+  .badgechip { display:inline-block; background:#0f141c; border:1px solid var(--line);
+               border-radius:10px; padding:2px 9px; font-size:.76rem; margin:2px 4px 0 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <div class="title">
+      <span class="gradechip">—</span>
+      <h1>AADX <span style="color:var(--dim);font-weight:400">AADX · 미국</span></h1>
+    </div>
+    <div class="meta">2026-06-17 11:24 KST</div>
+    <div>
+      <span class="badgechip">RS 모멘텀: 유니버스 데이터 없음</span>
+    </div>
+    <div class="grid4">
+      <div class="cell"><div class="k">매수 범위 (상단 초과 = 추격 금지)</div><div class="v">$22.13 ~ $22.79</div></div>
+      <div class="cell"><div class="k">손절 (고정)</div><div class="v">—</div></div>
+      <div class="cell"><div class="k">Wyckoff</div><div class="v">⚪ 해당 없음</div></div>
+      <div class="cell"><div class="k">시장 국면</div><div class="v" style="font-size:.8rem">S&P500 60일선 위 (양호) · VIX 16.4</div></div>
+    </div>
+  </div>
+
+  <div class="chartbox">
+    
+    <div class="chartbar">
+      <button id="tf-d" class="on">일봉</button><button id="tf-w">주봉</button>
+      <span style="flex:1"></span>
+      <button data-r="21">1M</button><button data-r="63">3M</button>
+      <button data-r="126" class="on" id="r-def">6M</button>
+      <button data-r="252">1Y</button><button data-r="0">전체</button>
+    </div>
+    <div id="lwchart"></div>
+    
+  </div>
+
+  
+  <section>
+    <h2>🧭 Wyckoff VPA 진단</h2>
+    
+    <div class="stage">
+      <div class="mark">❌</div>
+      <div><div class="lbl">1단계 · 유동성 저점 (동일 저가 군집)</div><div class="val">미확인</div></div>
+    </div>
+    
+    <div class="stage">
+      <div class="mark">❌</div>
+      <div><div class="lbl">2단계 · 셀링 클라이맥스 (이탈+거래량 폭발+회복)</div><div class="val">미확인</div></div>
+    </div>
+    
+    <div class="stage">
+      <div class="mark">❌</div>
+      <div><div class="lbl">3단계 · 공급 고갈 (저거래량 리테스트)</div><div class="val">미확인</div></div>
+    </div>
+    
+    <div class="ctx">주봉 컨텍스트: 주봉 이력 부족 — 컨텍스트 판단 불가</div>
+  </section>
+  
+
+  <section>
+    <h2>매수 근거</h2>
+    <p style="margin:4px 0">온디맨드 딥 분석 — 매수 신호가 아닌 현재 상태 진단입니다.</p>
+  </section>
+
+  
+
+  <section>
+    <h2>지표 해설</h2>
+    <ul>
+      
+      
+    </ul>
+  </section>
+
+  
+  <section>
+    <h2>전략별 조건 체크리스트</h2>
+    <ul><li>돌파: 데이터 부족 (10봉 < 150봉)</li><li>단기 과매도 반등 (비활성): 데이터 부족 (10봉 < 250봉)</li><li>눌림목 (비활성): 데이터 부족 (10봉 < 150봉)</li><li>변동성 스퀴즈 (비활성): 데이터 부족 (10봉 < 150봉)</li><li>와이코프 스프링 (비활성): 데이터 부족 (10봉 < 150봉)</li><li>Z-Score 평균회귀 (비활성): 데이터 부족 (10봉 < 60봉)</li></ul>
+  </section>
+  
+
+  <section>
+    <h2>매매 계획</h2>
+    <div class="grid4">
+      <div class="cell"><div class="k">매수 범위</div><div class="v">$22.13 ~ $22.79</div></div>
+      <div class="cell"><div class="k">손절 (고정)</div><div class="v">—</div></div>
+      <div class="cell"><div class="k">목표</div><div class="v">전략 조건 청산</div></div>
+      <div class="cell"><div class="k">제안 비중 (하프 켈리 · 참고용)</div><div class="v">표본 부족 (0건) — 제안 불가</div></div>
+    </div>
+    
+  </section>
+
+  <details>
+    <summary>백테스트 신뢰도 · ⚠️ 과거 시그널 없음</summary>
+    <div class="inner">
+      <div class="warnbox">⚠️ 과거 시그널 없음 — 아래 수치는 통계적으로 신뢰하기 어렵습니다.</div>
+      <table>
+        <tr><th>표본수</th><th>승률</th><th>PF</th><th>MDD</th><th>과적합 위험</th></tr>
+        <tr><td>0</td><td>—</td><td>—</td>
+            <td>—</td><td>표본부족</td></tr>
+      </table>
+      
+      <p style="color:var(--dim);font-size:.78rem">IS/OoS·몬테카를로 상세는 주간 검증 리포트 기준입니다.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>펀더멘털</summary>
+    <div class="inner">
+      <div class="grid4">
+        
+        <div class="cell"><div class="k">PER</div><div class="v">정보 없음</div></div>
+        
+        <div class="cell"><div class="k">PBR</div><div class="v">정보 없음</div></div>
+        
+        <div class="cell"><div class="k">시가총액</div><div class="v">정보 없음</div></div>
+        
+        <div class="cell"><div class="k">배당수익률</div><div class="v">0.00%</div></div>
+        
+        <div class="cell"><div class="k">52주 고저 대비 (자체 시세)</div><div class="v">85% 위치</div></div>
+        
+        <div class="cell"><div class="k">52주 최고/최저</div><div class="v">$23.00 / $17.08</div></div>
+        
+      </div>
+    </div>
+  </details>
+
+  <div class="disclaimer">
+    본 리포트의 백테스트 확률은 과거 데이터 기준이며, 실전 성과는 일반적으로 이보다 낮습니다.
+    백테스트는 현재 상장 종목 기준으로 상장폐지 종목이 제외된 생존 편향(낙관적 왜곡)을 포함합니다.
+    본 자료는 투자 자문이 아니며, 모든 투자 판단과 책임은 투자자 본인에게 있습니다.
+    시스템은 추천할 뿐, 결정은 사람이 합니다.<br>
+    Charts powered by <a href="https://www.tradingview.com/lightweight-charts/" style="color:var(--dim)">TradingView lightweight-charts</a> (Apache-2.0).
+  </div>
+</div>
+
+
+<div class="copybar">
+  <button id="copy-ai">📋 AI 분석 요청 복사</button>
+</div>
+<script>
+(function () {
+  const PROMPT = "당신은 와이코프 방법론과 기술적 분석 전문가입니다. 패턴 암기가 아닌 세력의 의도와 공급/수요 고갈을 검증하는 관점으로 아래 종목을 분석하세요.\n\n[기본 정보]\n종목: AADX(AADX) · 시장: 미국 · 기준일: 2026-06-16\n현재가: 22.13 · 전략: 딥 분석 · 종합 등급: - (-)\n매수 범위: 22.13 ~ 22.79 · 제안 손절: 전략 조건 청산\n\n[일봉 최근 10봉] date,open,high,low,close,volume\n2026-06-03,20.75,20.95,18.58,19.01,18035300\n2026-06-04,19.20,19.74,18.38,18.60,4800400\n2026-06-05,18.60,18.60,17.08,17.54,2761900\n2026-06-08,17.45,19.51,17.25,19.22,3142300\n2026-06-09,19.10,19.95,18.75,19.12,4040800\n2026-06-10,19.03,20.36,18.41,18.41,1641100\n2026-06-11,18.51,22.20,18.42,22.09,2431300\n2026-06-12,20.83,23.00,20.02,20.43,1356100\n2026-06-15,20.76,21.16,19.56,19.78,764200\n2026-06-16,19.73,22.59,19.52,22.13,1389660\n\n[주봉 최근 3봉] date,open,high,low,close,volume\n2026-06-05,20.75,20.95,17.08,17.54,25597600\n2026-06-12,17.45,23.00,17.25,20.43,12611600\n2026-06-19,20.76,22.59,19.52,22.13,2153860\n\n[와이코프 3단계 정량 진단]\n- 1단계 · 유동성 저점 (동일 저가 군집): 미충족 (미확인)\n- 2단계 · 셀링 클라이맥스 (이탈+거래량 폭발+회복): 미충족 (미확인)\n- 3단계 · 공급 고갈 (저거래량 리테스트): 미충족 (미확인)\n\n[Weis Wave · zigzag 3.0% · 최근 10개] 방향,봉수,누적거래량,가격변화\n하락,2,7562300,1.47\n상승,1,3142300,1.68\n하락,2,5681900,0.81\n상승,1,2431300,3.68\n하락,2,2120300,2.31\n상승,1,1389660,2.35\n\n[지표 스냅샷] 종가=22.13 · RSI2=78.02\n[시장 국면] S&P500 60일선 위 (양호) · VIX 16.4\n[역행 지표]\n- 없음\n[백테스트 신뢰도] 과거 시그널 없음 — 백테스트 신뢰도 평가 불가\n\n분석 지시 — 아래 단계를 순서대로, 각 단계의 근거를 명시하며 검증하세요:\n① 기술적 구조: 일봉과 주봉의 구조(추세·박스권·주요 레벨)가 서로 부합하는가\n② 거래량 흐름과 와이코프 단계: 위 Weis Wave·클라이맥스 수치가 매집/분산 어느 가설을 지지하는가\n③ 지표 합치/충돌: 제공된 지표들 사이의 모순을 반드시 명시하라 (모순이 없다고 가정하지 말 것)\n④ 시장 국면 적합성: 현재 국면에서 이 전략 유형이 작동할 조건인가\n⑤ 진입 타당성과 무효화 조건: 진입한다면 어떤 근거이고, 어느 가격/조건에서 이 해석이 깨지는가\n\n본 분석은 교육적 목적이며 투자 자문이 아닙니다.";
+  const btn = document.getElementById('copy-ai');
+  function done(ok) {
+    btn.textContent = ok ? '복사됨 ✓ — AI 채팅에 붙여넣으세요' : '복사 실패 — 길게 눌러 수동 복사';
+    btn.classList.toggle('done', ok);
+    setTimeout(() => { btn.textContent = '📋 AI 분석 요청 복사'; btn.classList.remove('done'); }, 2500);
+  }
+  btn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(PROMPT);
+      done(true);
+    } catch (e) {
+      // Fallback: hidden textarea + execCommand (older Safari / http contexts)
+      const ta = document.createElement('textarea');
+      ta.value = PROMPT;
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e2) { ok = false; }
+      document.body.removeChild(ta);
+      done(ok);
+    }
+  });
+})();
+</script>
+
+
+
+<script>
+(function () {
+  const DATA = {"daily": {"candles": [{"time": "2026-06-03", "open": 20.75, "high": 20.950001, "low": 18.58, "close": 19.01}, {"time": "2026-06-04", "open": 19.200001, "high": 19.74, "low": 18.379999, "close": 18.6}, {"time": "2026-06-05", "open": 18.6, "high": 18.6, "low": 17.08, "close": 17.540001}, {"time": "2026-06-08", "open": 17.450001, "high": 19.51, "low": 17.25, "close": 19.219999}, {"time": "2026-06-09", "open": 19.1, "high": 19.950001, "low": 18.75, "close": 19.120001}, {"time": "2026-06-10", "open": 19.030001, "high": 20.360001, "low": 18.41, "close": 18.41}, {"time": "2026-06-11", "open": 18.51, "high": 22.200001, "low": 18.42, "close": 22.09}, {"time": "2026-06-12", "open": 20.83, "high": 23.0, "low": 20.02, "close": 20.43}, {"time": "2026-06-15", "open": 20.76, "high": 21.16, "low": 19.559999, "close": 19.780001}, {"time": "2026-06-16", "open": 19.73, "high": 22.5886, "low": 19.5201, "close": 22.129999}], "volume": [{"time": "2026-06-03", "value": 18035300.0, "color": "#ef535066"}, {"time": "2026-06-04", "value": 4800400.0, "color": "#ef535066"}, {"time": "2026-06-05", "value": 2761900.0, "color": "#ef535066"}, {"time": "2026-06-08", "value": 3142300.0, "color": "#26a69a66"}, {"time": "2026-06-09", "value": 4040800.0, "color": "#26a69a66"}, {"time": "2026-06-10", "value": 1641100.0, "color": "#ef535066"}, {"time": "2026-06-11", "value": 2431300.0, "color": "#26a69a66"}, {"time": "2026-06-12", "value": 1356100.0, "color": "#ef535066"}, {"time": "2026-06-15", "value": 764200.0, "color": "#ef535066"}, {"time": "2026-06-16", "value": 1389660.0, "color": "#26a69a66"}], "rsi": [], "macd": [], "macd_signal": [], "macd_hist": [], "weis": [{"time": "2026-06-04", "value": 4800400.0, "color": "#ef5350"}, {"time": "2026-06-05", "value": 7562300.0, "color": "#ef5350"}, {"time": "2026-06-08", "value": 3142300.0, "color": "#26a69a"}, {"time": "2026-06-09", "value": 4040800.0, "color": "#ef5350"}, {"time": "2026-06-10", "value": 5681900.0, "color": "#ef5350"}, {"time": "2026-06-11", "value": 2431300.0, "color": "#26a69a"}, {"time": "2026-06-12", "value": 1356100.0, "color": "#ef5350"}, {"time": "2026-06-15", "value": 2120300.0, "color": "#ef5350"}, {"time": "2026-06-16", "value": 1389660.0, "color": "#26a69a"}], "smas": {}, "bb_upper": [], "bb_lower": []}, "weekly": {"candles": [{"time": "2026-06-05", "open": 20.75, "high": 20.950001, "low": 17.08, "close": 17.540001}, {"time": "2026-06-12", "open": 17.450001, "high": 23.0, "low": 17.25, "close": 20.43}, {"time": "2026-06-19", "open": 20.76, "high": 22.5886, "low": 19.5201, "close": 22.129999}], "volume": [{"time": "2026-06-05", "value": 25597600.0, "color": "#ef535066"}, {"time": "2026-06-12", "value": 12611600.0, "color": "#26a69a66"}, {"time": "2026-06-19", "value": 2153860.0, "color": "#26a69a66"}], "rsi": [], "macd": [], "macd_signal": [], "macd_hist": [], "weis": [{"time": "2026-06-12", "value": 12611600.0, "color": "#26a69a"}, {"time": "2026-06-19", "value": 14765460.0, "color": "#26a69a"}], "smas": {}, "bb_upper": [], "bb_lower": []}, "priceLines": [{"price": 22.1299991607666, "title": "제안 매수가", "color": "#4fc3f7", "dashed": false}, {"price": 22.7939, "title": "범위 상단", "color": "#8ab4f8", "dashed": true}], "markers": [{"time": "2026-06-16", "position": "belowBar", "shape": "arrowUp", "color": "#26a69a", "text": "BUY"}]};
+  const LWC = window.LightweightCharts;
+  if (!LWC) { document.getElementById('lwchart').innerHTML = '차트 로드 실패 — 네트워크 확인'; return; }
+  const el = document.getElementById('lwchart');
+  const chart = LWC.createChart(el, {
+    layout: { background: { color: '#141922' }, textColor: '#8b96a5',
+              panes: { separatorColor: '#222a36' } },
+    grid: { vertLines: { color: '#1a2029' }, horzLines: { color: '#1a2029' } },
+    timeScale: { borderColor: '#222a36' },
+    rightPriceScale: { borderColor: '#222a36' },
+    handleScale: { pinch: true, mouseWheel: true }, handleScroll: true,
+    autoSize: true,
+  });
+  const candles = chart.addSeries(LWC.CandlestickSeries, {
+    upColor: '#26a69a', downColor: '#ef5350',
+    wickUpColor: '#26a69a', wickDownColor: '#ef5350', borderVisible: false,
+  }, 0);
+  const smaColors = { SMA20: '#4fc3f7', SMA60: '#ba68c8', SMA200: '#ffd54f' };
+  const smaSeries = {};
+  Object.keys(smaColors).forEach(k => {
+    smaSeries[k] = chart.addSeries(LWC.LineSeries,
+      { color: smaColors[k], lineWidth: 1, priceLineVisible: false, lastValueVisible: false }, 0);
+  });
+  const bbU = chart.addSeries(LWC.LineSeries, { color: 'rgba(120,144,156,.5)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false }, 0);
+  const bbL = chart.addSeries(LWC.LineSeries, { color: 'rgba(120,144,156,.5)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false }, 0);
+  const vol = chart.addSeries(LWC.HistogramSeries, { priceFormat: { type: 'volume' }, priceLineVisible: false }, 1);
+  const rsi = chart.addSeries(LWC.LineSeries, { color: '#4fc3f7', lineWidth: 1, priceLineVisible: false }, 2);
+  const macdL = chart.addSeries(LWC.LineSeries, { color: '#4fc3f7', lineWidth: 1, priceLineVisible: false }, 3);
+  const macdS = chart.addSeries(LWC.LineSeries, { color: '#ffd54f', lineWidth: 1, priceLineVisible: false }, 3);
+  const macdH = chart.addSeries(LWC.HistogramSeries, { priceLineVisible: false }, 3);
+  const weis = chart.addSeries(LWC.HistogramSeries, { priceFormat: { type: 'volume' }, priceLineVisible: false }, 4);
+  try {
+    const panes = chart.panes();
+    if (panes[0] && panes[0].setStretchFactor) {
+      [3, 1, 1, 1, 1].forEach((f, i) => panes[i] && panes[i].setStretchFactor(f));
+    }
+  } catch (e) { /* pane sizing is cosmetic */ }
+
+  DATA.priceLines.forEach(pl => candles.createPriceLine({
+    price: pl.price, color: pl.color, lineWidth: 1, title: pl.title,
+    lineStyle: pl.dashed ? LWC.LineStyle.Dashed : LWC.LineStyle.Solid,
+  }));
+  try {
+    if (LWC.createSeriesMarkers) LWC.createSeriesMarkers(candles, DATA.markers);
+    else if (candles.setMarkers) candles.setMarkers(DATA.markers);
+  } catch (e) { /* markers are progressive enhancement */ }
+
+  let tf = 'daily';
+  function apply(tfKey) {
+    tf = tfKey;
+    const d = DATA[tfKey];
+    candles.setData(d.candles);
+    vol.setData(d.volume);
+    rsi.setData(d.rsi);
+    macdL.setData(d.macd); macdS.setData(d.macd_signal); macdH.setData(d.macd_hist);
+    weis.setData(d.weis);
+    Object.keys(smaSeries).forEach(k => smaSeries[k].setData(d.smas[k] || []));
+    bbU.setData(d.bb_upper || []); bbL.setData(d.bb_lower || []);
+    document.getElementById('tf-d').classList.toggle('on', tfKey === 'daily');
+    document.getElementById('tf-w').classList.toggle('on', tfKey === 'weekly');
+    setRange(currentRange);
+  }
+  let currentRange = 126;
+  function setRange(nDaily) {
+    currentRange = nDaily;
+    const d = DATA[tf].candles;
+    if (!d.length) return;
+    const n = nDaily === 0 ? d.length : Math.min(d.length, tf === 'weekly' ? Math.ceil(nDaily / 5) : nDaily);
+    chart.timeScale().setVisibleLogicalRange({ from: d.length - n, to: d.length + 2 });
+    document.querySelectorAll('.chartbar [data-r]').forEach(b =>
+      b.classList.toggle('on', Number(b.dataset.r) === nDaily));
+  }
+  document.getElementById('tf-d').onclick = () => apply('daily');
+  document.getElementById('tf-w').onclick = () => apply('weekly');
+  document.querySelectorAll('.chartbar [data-r]').forEach(b =>
+    b.onclick = () => setRange(Number(b.dataset.r)));
+  el.addEventListener('dblclick', () => setRange(0));
+  apply('daily');
+})();
+</script>
+
+</body>
+</html>
