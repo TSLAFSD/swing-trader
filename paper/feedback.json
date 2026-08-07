@@ -1,0 +1,81 @@
+{
+  "n_signals": 164,
+  "n_trades": 1,
+  "grade_efficacy": [
+    {
+      "grade": "A",
+      "n": 1,
+      "hit": 0.0,
+      "avg": -1.612869110439319
+    },
+    {
+      "grade": "B",
+      "n": 1,
+      "hit": 0.0,
+      "avg": -30.817610062893085
+    },
+    {
+      "grade": "C",
+      "n": 107,
+      "hit": 0.2616822429906542,
+      "avg": -9.948022518416987
+    }
+  ],
+  "strategy_efficacy": [
+    {
+      "strategy_id": "breakout",
+      "n": 131,
+      "hit": 0.24427480916030533,
+      "avg": -10.486935235069298
+    },
+    {
+      "strategy_id": "wyckoff_spring",
+      "n": 3,
+      "hit": 0.6666666666666666,
+      "avg": 1.5648405288510858
+    },
+    {
+      "strategy_id": "zscore_meanrev",
+      "n": 2,
+      "hit": 1.0,
+      "avg": 12.228226369580398
+    }
+  ],
+  "feature_buckets": {
+    "atr14": [
+      {
+        "range": "0.7~6.8",
+        "n": 36,
+        "hit": 0.3611111111111111,
+        "avg": -3.3448923109992688
+      },
+      {
+        "range": "6.8~1502.9",
+        "n": 35,
+        "hit": 0.2571428571428571,
+        "avg": -10.309809382289286
+      },
+      {
+        "range": "1502.9~87926.4",
+        "n": 36,
+        "hit": 0.1111111111111111,
+        "avg": -17.77960805019479
+      }
+    ]
+  },
+  "exit_analysis": {
+    "n": 1,
+    "n_win": 0,
+    "winner_mae_median": null,
+    "loser_mae_median": -7.7387,
+    "winner_mfe_median": null,
+    "winner_giveback_median": null
+  },
+  "suggestions": [
+    {
+      "kind": "suggest",
+      "title": "breakout 적중률 저조",
+      "detail": "131건 적중 24% (<45%) — 재검증/비활성 검토."
+    }
+  ]
+}
