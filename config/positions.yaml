@@ -9,8 +9,8 @@ positions:
   stop_loss: 122.3601
   take_profit: null
   exit_mode: atr_trailing
-  highest_close: 172.01
-  current_trailing_sl: 145.1236
+  highest_close: 175.23
+  current_trailing_sl: 148.3933
 - ticker: SATL
   market: us
   entry_date: '2026-06-18'
