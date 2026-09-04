@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-05T05:48:28+09:00",
+  "signals": [],
+  "paper": {
+    "summary": {
+      "start_equity": 10000.0,
+      "n_closed": 1,
+      "win_rate": 0.0,
+      "profit_factor": 0.0,
+      "avg_holding": 25.0,
+      "realized_pnl": -112.1524,
+      "max_drawdown_pct": 0.0,
+      "best": {
+        "ticker": "CAT",
+        "return_pct": -5.61
+      },
+      "worst": {
+        "ticker": "CAT",
+        "return_pct": -5.61
+      },
+      "n_open": 0,
+      "open_unrealized_pnl": 0.0,
+      "period_start": "2026-06-18",
+      "period_end": "2026-07-13",
+      "current_equity": 9887.8476,
+      "realized_return_pct": -1.121524,
+      "total_return_pct": -1.121524000000007
+    },
+    "equity_curve": [
+      {
+        "date": "2026-07-13",
+        "equity": 9887.85,
+        "drawdown_pct": 0.0
+      }
+    ],
+    "by_grade": [
+      {
+        "key": "A",
+        "n": 1,
+        "win_rate": 0.0,
+        "avg_return": -5.61
+      }
+    ],
+    "open": [],
+    "recent_closed": [
+      {
+        "ticker": "CAT",
+        "market": "us",
+        "grade": "A",
+        "strategy_id": "breakout",
+        "entry_date": "2026-06-18",
+        "exit_date": "2026-07-13",
+        "return_pct": -5.61,
+        "holding_days": 25,
+        "exit_reason": "trailing"
+      }
+    ]
+  },
+  "system": {
+    "adaptive_loop_enabled": true,
+    "min_strength_send": 20.0,
+    "enabled_strategies": [
+      {
+        "strategy_id": "breakout",
+        "name": "돌파"
+      },
+      {
+        "strategy_id": "zscore_meanrev",
+        "name": "Z-Score 평균회귀"
+      }
+    ],
+    "effective_cutoff": 25.0,
+    "recent_audit": [
+      {
+        "ts": "2026-07-04T04:08:41+09:00",
+        "lever": "acceptance_cutoff",
+        "old": 20.0,
+        "new": 25.0,
+        "trigger": "수용 경계(20~30) 적중 25%·평균 -8.9% → 컷오프 상향",
+        "regime": null
+      }
+    ]
+  }
+}
