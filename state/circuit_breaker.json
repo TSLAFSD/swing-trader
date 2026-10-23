@@ -1,0 +1,32 @@
+{
+  "breakout": {
+    "suspended": true,
+    "since": "2026-07-10",
+    "mean_fwd10": -0.17695850753214803
+  },
+  "connors_rsi2": {
+    "suspended": false,
+    "since": null,
+    "mean_fwd10": null
+  },
+  "pullback": {
+    "suspended": false,
+    "since": null,
+    "mean_fwd10": null
+  },
+  "squeeze": {
+    "suspended": false,
+    "since": null,
+    "mean_fwd10": null
+  },
+  "wyckoff_spring": {
+    "suspended": false,
+    "since": null,
+    "mean_fwd10": 0.01289352000588349
+  },
+  "zscore_meanrev": {
+    "suspended": false,
+    "since": null,
+    "mean_fwd10": -0.013345981478942875
+  }
+}
